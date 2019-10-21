@@ -3,6 +3,7 @@ package smartsafe.view;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import javax.smartcardio.CardTerminal;
 
@@ -44,6 +45,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import smartsafe.Messages;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
@@ -73,9 +75,6 @@ public class GlobalView {
 		mainPane.setOrientation(Orientation.HORIZONTAL);
 		mainPane.getItems().addAll(groupsView, centerPane);
 		mainPane.setDividerPosition(0, 0.2);
-		/*mainPane.getDividers().get(0).positionProperty().addListener((observable, oldValue, newValue) -> {
-			reference.setPrefWidth(new Double(110));
-		});*/
 		
 		ToolBar tb = new ToolBar();
 		tb.getItems().add(Controls.getButton(Controls.CONNECT));
@@ -88,7 +87,7 @@ public class GlobalView {
 		
 		MenuBar mb = new MenuBar();
 		Menu m;
-		mb.getMenus().add(m = new Menu("File"));
+		mb.getMenus().add(m = new Menu(Messages.get("MENU_FILE")));
 		m.getItems().add(Controls.getMenuItem(Controls.CONNECT));
 		m.getItems().add(new SeparatorMenuItem());
 		m.getItems().add(Controls.getMenuItem(Controls.NEW_GROUP));
@@ -96,13 +95,16 @@ public class GlobalView {
 		m.getItems().add(Controls.getMenuItem(Controls.DELETE));
 		m.getItems().add(new SeparatorMenuItem());
 		m.getItems().add(Controls.getMenuItem(Controls.EXIT));
-		mb.getMenus().add(m = new Menu("Edit"));
+		mb.getMenus().add(m = new Menu(Messages.get("MENU_EDIT")));
 		m.getItems().add(Controls.getMenuItem(Controls.EDIT));
 		m.getItems().add(Controls.getMenuItem(Controls.GOTO));
 		m.getItems().add(Controls.getMenuItem(Controls.COPY_USER));
 		m.getItems().add(Controls.getMenuItem(Controls.COPY_PASS));
 		m.getItems().add(Controls.getMenuItem(Controls.SHOW_PASS));
-		mb.getMenus().add(m = new Menu("Help"));
+		mb.getMenus().add(m = new Menu(Messages.get("MENU_HELP")));
+		//preferences
+		//stats
+		//updates
 		m.getItems().add(Controls.getMenuItem(Controls.HELP));
 		m.getItems().add(Controls.getMenuItem(Controls.ABOUT));
 		
@@ -124,16 +126,16 @@ public class GlobalView {
 			
 			TableColumn<Entry, String> column;
 			
-			table.getColumns().add(column = new TableColumn<>("Identifier"));
+			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_IDENTIFIER")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getIdentifier());
 			
-			table.getColumns().add(column = new TableColumn<>("User name"));
+			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_USER")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getUserName());
 			
-			table.getColumns().add(column = new TableColumn<>("Password"));
+			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_PASSWORD")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getPassword());
 			
-			table.getColumns().add(column = new TableColumn<>("URL"));
+			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_URL")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getUrl());
 			
 			//table.getSelectionModel().setCellSelectionEnabled(true);
@@ -151,7 +153,7 @@ public class GlobalView {
 				else {
 					lastUpdate.setText(formatDate(newValue.getLastUpdate().get()));
 					if (newValue.getExpiresDate().get() == null)
-						expiresOn.setText("Never");
+						expiresOn.setText(Messages.get("DETAILS_NEVER"));
 					else
 						expiresOn.setText(formatDate(newValue.getExpiresDate().get()));//TODO
 					notes.setText(newValue.getNotes().get());
@@ -165,29 +167,28 @@ public class GlobalView {
 		if (details == null) {
 			GridPane gp = new GridPane();
 			Label l;
-			gp.add(l = new Label("Last update:"), 0, 0);
+			gp.add(l = new Label(Messages.get("DETAILS_LAST_UPDATE")), 0, 0);
 			gp.add(lastUpdate = new Label("-"), 1, 0);
-			gp.add(new Label("Expires on:"), 0, 1);
+			gp.add(new Label(Messages.get("DETAILS_EXPIRES_ON")), 0, 1);
 			gp.add(expiresOn = new Label("-"), 1, 1);
-			gp.add(new Label("Notes:"), 0, 2);
+			gp.add(new Label(Messages.get("DETAILS_NOTES")), 0, 2);
 			gp.add(notes = new TextArea(), 1, 2);
-			l.setMinWidth(80);
+			l.setMinWidth(75);
 			notes.setEditable(false);
 			
-			details = new TitledPane("Details", gp);
+			details = new TitledPane(Messages.get("DETAILS"), gp);
 			details.setGraphic(new ImageView(Images.DETAILS));
 			details.setCollapsible(true);
 		}
 		return details;
 	}
 	private static String formatDate(LocalDate date) {
-		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));//TODO
 	}
 	private static Dialog<ButtonType> errorDialog(String error) {
 		Dialog<ButtonType> dialog = new Dialog<ButtonType>();
-		dialog.setTitle("OOps!! An error has occured!");
+		dialog.setTitle(Messages.get("ERROR_DIALOG"));
 		final DialogPane dialogPane = dialog.getDialogPane();
-		dialogPane.setContentText("Details of the problem:");
 		dialogPane.getButtonTypes().addAll(ButtonType.OK);
 		dialogPane.setContentText(error);
 		dialog.initModality(Modality.APPLICATION_MODAL);
@@ -208,20 +209,25 @@ public class GlobalView {
 	
 	public static void connectDialog() {
 		Dialog<String> dialog = new Dialog<>();
-		ButtonType ok = initDialog(dialog, Images.CONNECT, "Connect to card");
+		ButtonType ok = initDialog(dialog, Images.CONNECT, Messages.get("CONNECT_DIALOG"));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
 		gp.setVgap(2);
 
+		List<CardTerminal> terminals = Connection.getTerminals();
+		if (terminals == null || terminals.isEmpty()) {
+			errorDialog(Messages.get("CONNECT_NO_READER"));
+			return;
+		}
 		ComboBox<CardTerminal> readerList = new ComboBox<>();
-		readerList.getItems().addAll(Connection.getTerminals());
+		readerList.getItems().addAll(terminals);
 		readerList.getSelectionModel().select(0);
 		PasswordField password = new PasswordField();
 		
-		gp.add(new Label("Select reader:"), 0, 0);
+		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
 		gp.add(readerList, 1, 0);
-		gp.add(new Label("Password:"), 0, 1);
+		gp.add(new Label(Messages.get("CONNECT_PASSWORD")), 0, 1);
 		gp.add(password, 1, 1);
 		
 		
@@ -236,10 +242,10 @@ public class GlobalView {
 		Platform.runLater(() -> password.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-		    if (dialogButton == ok) {
-		    	Controls.createAppli(readerList.getValue(), password.getText());
-		    }
-		    return null;
+			if (dialogButton == ok) {
+				Controls.createAppli(readerList.getValue(), password.getText());
+			}
+			return null;
 		});
 		
 		dialog.showAndWait();
@@ -247,7 +253,7 @@ public class GlobalView {
 	
 	public static void newGroupDialog() {
 		Dialog<String> dialog = new Dialog<>();
-		ButtonType ok = initDialog(dialog, Images.NEW_GROUP, "New group");
+		ButtonType ok = initDialog(dialog, Images.NEW_GROUP, Messages.get("GROUP_DIALOG"));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
@@ -256,9 +262,9 @@ public class GlobalView {
 		TextField groupName = new TextField();
 		Spinner<Integer> groupSize = new Spinner<>(8, 255, 32);
 		
-		gp.add(new Label("Group name:"), 0, 0);
+		gp.add(new Label(Messages.get("GROUP_NAME")), 0, 0);
 		gp.add(groupName, 1, 0);
-		gp.add(new Label("Group size:"), 0, 1);
+		gp.add(new Label(Messages.get("GROUP_SIZE")), 0, 1);
 		gp.add(groupSize, 1, 1);
 		
 		
@@ -273,7 +279,7 @@ public class GlobalView {
 		Platform.runLater(() -> groupName.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-		    if (dialogButton == ok) {
+			if (dialogButton == ok) {
 				short sw = Controls.getAppli().createGroup(groupSize.getValue().byteValue(), groupName.getText()).getStatusWord();
 				if (sw == SmartSafeAppli.SW_NO_ERROR) {
 					GlobalView.getGroups().getChildren().add(new TreeItem<String>(groupName.getText()));
@@ -284,49 +290,47 @@ public class GlobalView {
 				else {
 					errorDialog("The group has not been created with an undefined error: " + new StringHex(sw).toString());
 				}
-		    }
-		    return null;
+			}
+			return null;
 		});
 		
 		dialog.showAndWait();
 	}
-	public static void newEntryDialog() {
+	public static void entryDialog(Entry selectedEntry) {
+		final String oldPass;
 		Dialog<String> dialog = new Dialog<>();
-		ButtonType ok = initDialog(dialog, Images.NEW_ENTRY, "New entry");
+		ButtonType ok;
+		if (selectedEntry == null)
+			ok = initDialog(dialog, Images.NEW_ENTRY, "New entry");
+		else
+			ok = initDialog(dialog, Images.EDIT, "Edit entry");
 		
 		
-		HBox exp = new HBox();
+		HBox exp = new HBox(4);
 		DatePicker expires = new DatePicker();
 		expires.setMaxWidth(160);
 		exp.getChildren().add(expires);
 		Button b;
-		exp.getChildren().add(new Label(" "));
 		exp.getChildren().add(b = new Button("T+1 month"));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(1)));
-		exp.getChildren().add(new Label(" "));
 		exp.getChildren().add(b = new Button("T+3 months"));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(3)));
-		exp.getChildren().add(new Label(" "));
 		exp.getChildren().add(b = new Button("T+6 months"));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(6)));
-		exp.getChildren().add(new Label(" "));
 		exp.getChildren().add(b = new Button("T+1 year"));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(12)));
-		exp.setDisable(true);
 		
-		HBox pass = new HBox();
+		HBox pass = new HBox(4);
 		ToggleButton tb;
 		PasswordField password = new PasswordField();
 		TextField password2 = new TextField();
 		password.setMinWidth(363);
 		password2.setMinWidth(363);
 		pass.getChildren().add(password);
-		pass.getChildren().add(new Label(" "));
 		pass.getChildren().add(tb = new ToggleButton("Show"));
 		tb.setOnAction(event -> {
 			pass.getChildren().set(0, tb.isSelected() ? password2 : password);
 		});
-		pass.getChildren().add(new Label(" "));
 		pass.getChildren().add(new Button("Random"));
 		
 		GridPane gp = new GridPane();
@@ -351,9 +355,24 @@ public class GlobalView {
 		gp.add(new Label("Notes:"), 0, 5);
 		gp.add(notes, 1, 5);
 		
+		if (selectedEntry != null) {
+			oldPass = selectedEntry.getPassword().get();
+			identifier.setDisable(true);
+			userName.setDisable(true);
+			identifier.setText(selectedEntry.getIdentifier().get());
+			userName.setText(selectedEntry.getUserName().get());
+			password.setText(selectedEntry.getPassword().get());
+			password2.setText(selectedEntry.getPassword().get());
+			expires.setValue(selectedEntry.getExpiresDate().get());
+			url.setText(selectedEntry.getUrl().get());
+			notes.setText(selectedEntry.getNotes().get());
+		}
+		else
+			oldPass = null;
 		
 		Node okButton = dialog.getDialogPane().lookupButton(ok);
-		okButton.setDisable(true);
+		okButton.setDisable(selectedEntry == null);
+		exp.setDisable(password.getText().isEmpty());
 
 		identifier.textProperty().addListener((observable, oldValue, newValue) -> {
 			okButton.setDisable(newValue.trim().isEmpty() || userName.getText().trim().isEmpty());
@@ -375,34 +394,35 @@ public class GlobalView {
 		Platform.runLater(() -> identifier.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-		    if (dialogButton == ok) {
-		    	Entry entry = new Entry(identifier.getText(), userName.getText());
-		    	short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry).getStatusWord();
-		    	if (sw == SmartSafeAppli.SW_NO_ERROR) {
-		    		if (!password.getText().isEmpty()) {
-			    		Controls.getAppli().setData(Entry.INDEX_PASSWORD, password.getText());
-			    		Controls.getAppli().setData(Entry.INDEX_lAST_UPDATE, LocalDate.now().toString());
-			    		if (expires.getValue() != null) {
-				    		Controls.getAppli().setData(Entry.INDEX_EXP_DATE, expires.getValue().toString());
-				    	}
-			    	}
-			    	if (!url.getText().isEmpty()) {
-			    		Controls.getAppli().setData(Entry.INDEX_URL, url.getText());
-			    	}
-			    	if (!notes.getText().isEmpty()) {
-			    		Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText());
-			    	}
-			    	entry.maskPassword();
-			    	table.getItems().add(entry);
+			if (dialogButton == ok) {
+				Entry entry = selectedEntry;
+				if (entry == null) {
+					entry = new Entry(identifier.getText(), userName.getText());
+					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry).getStatusWord();
+					if (sw == SmartSafeAppli.SW_FILE_FULL) {
+						errorDialog("No more entry can be created (current group is full) !");
+						return null;
+					}
+					else if (sw != SmartSafeAppli.SW_NO_ERROR) {
+						errorDialog("The entry has not been created with an undefined error: " + new StringHex(sw).toString());
+						return null;
+					}
+					table.getItems().add(entry);
 				}
-				else if (sw == SmartSafeAppli.SW_FILE_FULL) {
-					errorDialog("No more entry can be created (current group is full) !");
+				
+				if ((selectedEntry == null && !password.getText().isEmpty()) ||
+					(selectedEntry != null && !password.getText().equals(oldPass))) {
+					Controls.getAppli().setData(Entry.INDEX_PASSWORD, password.getText());
+					Controls.getAppli().setData(Entry.INDEX_lAST_UPDATE, LocalDate.now().toString());
 				}
-				else {
-					errorDialog("The entry has not been created with an undefined error: " + new StringHex(sw).toString());
+				if (expires.getValue() != null) {
+					Controls.getAppli().setData(Entry.INDEX_EXP_DATE, expires.getValue().toString());
 				}
-		    }
-		    return null;
+				Controls.getAppli().setData(Entry.INDEX_URL, url.getText());
+				Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText());
+				entry.maskPassword();
+			}
+			return null;
 		});
 		
 		dialog.showAndWait();
@@ -439,7 +459,7 @@ public class GlobalView {
 		Platform.runLater(() -> gp.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-		    if (dialogButton == ok) {
+			if (dialogButton == ok) {
 				if (tGroup.getSelectedToggle() == rGroup) {
 					Controls.getAppli().deleteGroup(group.getValue());
 					GlobalView.getGroups().getChildren().remove(group);
@@ -448,8 +468,8 @@ public class GlobalView {
 					Controls.getAppli().deleteEntry(entry);
 					table.getItems().remove(entry);
 				}
-		    }
-		    return null;
+			}
+			return null;
 		});
 		
 		dialog.showAndWait();
@@ -477,7 +497,7 @@ public class GlobalView {
 		gp.add(new Label("Client version:"), 0, 1);
 		gp.add(new Label(Version.version), 1, 1);
 		gp.add(new Label("Report a bug ?"), 0, 2);
-		gp.add(l = new Label("contact-smartsafe@gmail.com"), 1, 2);
+		gp.add(l = new Label("contact.smartthings@gmail.com"), 1, 2);
 		l.setTextFill(Color.BLUE);
 		dialog.getDialogPane().setContent(gp);
 		

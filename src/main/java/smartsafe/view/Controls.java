@@ -46,7 +46,7 @@ public class Controls {
 	});
 	public static final String NEW_ENTRY = "New Entry";
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
-		GlobalView.newEntryDialog();
+		GlobalView.entryDialog(null);
 	});
 	
 	public static final String DELETE = "Delete";
@@ -96,7 +96,12 @@ public class Controls {
 	
 	public static final String EDIT = "Edit entry";
 	public static final Action ACTION_EDIT = new Action(EDIT, false, null, params -> {
-		//TODO
+		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		appli.selectEntry(e);
+		appli.getData(Entry.INDEX_PASSWORD);
+		GlobalView.entryDialog(e);
+		GlobalView.getTableEntries().getSelectionModel().select(null);
+		GlobalView.getTableEntries().getSelectionModel().select(e);
 	});
 	
 	public static final String GOTO = "Go to url";
