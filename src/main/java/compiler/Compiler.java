@@ -119,14 +119,19 @@ public class Compiler {
 	    return result;
 	}
 	
-	public static boolean convert(String packageName, String packageAID, String version, String classDir, boolean integer, List<String> exportPaths, List<String> applets) {
+	public static boolean convert(String packageName, String packageAID, String version, String classDir, boolean integer, List<String> exportPaths, List<String> applets, List<StringHex> appletsAID) {
 		Path jcExp = ResourcesManager.getFile(JC_HOME + EXP);
 		Path gpExp = ResourcesManager.getFile(GP_HOME + EXP);
 		List<String> args = new LinkedList<>();
 		args.add("-classdir"); args.add(classDir);
 		args.add("-d");        args.add(classDir);
 		for (int i = 0; i < applets.size(); i++) {
-			args.add("-applet"); args.add(packageAID + ":0x" + StringHex.byteToHex((byte) i)); args.add(applets.get(i));
+			args.add("-applet");
+			if (appletsAID == null || appletsAID.size() != applets.size())
+				args.add(packageAID + ":0x" + StringHex.byteToHex((byte) i)); 
+			else
+				args.add("0x" + appletsAID.get(i).toString().replaceAll(" ", ":0x"));
+			args.add(applets.get(i));
 		}
 		
 		if (integer)

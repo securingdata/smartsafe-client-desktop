@@ -23,6 +23,7 @@ import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCombination;
+import smartsafe.Messages;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
 
@@ -40,16 +41,16 @@ public class Controls {
 	
 	
 	//==================== ACTIONS ====================\\
-	public static final String NEW_GROUP = "New Group";
+	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
 	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
 		GlobalView.newGroupDialog();
 	});
-	public static final String NEW_ENTRY = "New Entry";
+	public static final String NEW_ENTRY = Messages.get("NEW_ENTRY");
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
 		GlobalView.entryDialog(null);
 	});
 	
-	public static final String DELETE = "Delete";
+	public static final String DELETE = Messages.get("DELETE");
 	public static final Action ACTION_DELETE = new Action(DELETE, false, null, params -> {
 		TreeItem<String> group = GlobalView.getGroupsView().getSelectionModel().getSelectedItem();
 		if (group != null) {
@@ -59,8 +60,8 @@ public class Controls {
 		
 	});
 	
-	public static final String CONNECT = "Connect";
-	public static final String DISCONNECT = "Disconnect";
+	public static final String CONNECT = Messages.get("CONNECT");
+	public static final String DISCONNECT = Messages.get("DISCONNECT");
 	public static final Action ACTION_CONNECT = new Action(CONNECT, false, null, params -> {
 		if (appli == null) {
 			GlobalView.connectDialog();
@@ -94,7 +95,7 @@ public class Controls {
 		appli.getAivailableMemory();
 	});
 	
-	public static final String EDIT = "Edit entry";
+	public static final String EDIT = Messages.get("EDIT");
 	public static final Action ACTION_EDIT = new Action(EDIT, false, null, params -> {
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		appli.selectEntry(e);
@@ -104,7 +105,7 @@ public class Controls {
 		GlobalView.getTableEntries().getSelectionModel().select(e);
 	});
 	
-	public static final String GOTO = "Go to url";
+	public static final String GOTO = Messages.get("GOTO");
 	public static final Action ACTION_GOTO = new Action(GOTO, false, null, params -> {
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		try {
@@ -114,14 +115,14 @@ public class Controls {
 		catch (URISyntaxException e1) {}
 	});
 	
-	public static final String COPY_USER = "Copy user name";
+	public static final String COPY_USER = Messages.get("COPY_USER");
 	public static final Action ACTION_COPY_USER = new Action(COPY_USER, false, null, params -> {
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		clipboard.setContents(new StringSelection(e.getUserName().get()), null);
 	});
 	
-	public static final String COPY_PASS = "Copy password";
+	public static final String COPY_PASS = Messages.get("COPY_PASS");
 	public static final Action ACTION_COPY_PASS = new Action(COPY_PASS, false, null, params -> {
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
@@ -131,24 +132,24 @@ public class Controls {
 		e.maskPassword();
 	});
 	
-	public static final String SHOW_PASS = "Show password";
+	public static final String SHOW_PASS = Messages.get("SHOW_PASS");
 	public static final Action ACTION_SHOW_PASS = new Action(SHOW_PASS, false, null, params -> {
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
 	});
 	
-	public static final String HELP = "Help";
+	public static final String HELP = Messages.get("HELP");
 	public static final Action ACTION_HELP = new Action(HELP, false, null, params -> {
 		//TODO
 	});
 	
-	public static final String ABOUT = "About";
+	public static final String ABOUT = Messages.get("ABOUT");
 	public static final Action ACTION_ABOUT = new Action(ABOUT, false, null, params -> {
 		GlobalView.aboutDialog();
 	});
 	
-	public static final String EXIT = "Exit";
+	public static final String EXIT = Messages.get("EXIT");
 	public static final Action ACTION_EXIT = new Action(EXIT, false, null, params -> {
 		if (appli != null)
 			appli.disconnect();

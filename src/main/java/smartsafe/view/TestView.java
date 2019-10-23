@@ -2,6 +2,7 @@ package smartsafe.view;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collections;
 
 import compiler.CompilerException;
 import connection.loader.GPCommands;
@@ -24,6 +25,9 @@ import smartsafe.comm.SmartSafeAppli;
 import util.StringHex;
 
 public class TestView extends Application {
+	private static final StringHex PACK_AID = new StringHex("SmartSafe".getBytes());
+	private static final StringHex APP_AID  = new StringHex("SmartSafeApp".getBytes());
+	
 	public static void main(String[] args) {
 		/*build();
 		reload();
@@ -34,8 +38,10 @@ public class TestView extends Application {
 	}
 	
 	public static void build() {
-		Project p = new Project("SmartSafe", "TODO");
+		Project p = new Project("SmartSafe", "..\\SmartSafeServer");
 		p.parsePckgs();
+		p.getPackages().get(0).setAid(PACK_AID);
+		p.getPackages().get(0).setAppletsAID(Collections.singletonList(APP_AID));
 		try {
 			p.build();
 		} catch (CompilerException e) {
@@ -56,12 +62,12 @@ public class TestView extends Application {
 			scp.initUpdate((byte) 0, (byte) 0);
 			scp.externalAuth(SCP.SEC_LEVEL_C_MAC);
 			
-			String packAid = "A0 00 00 00 00 20 00";
-			String appAid = packAid + " 00";
+			String packAid = PACK_AID.toString();
+			String appAid = APP_AID.toString();
 			gp.delete(appAid, true);
 			gp.delete(packAid, true);
 			gp.installForLoad(packAid, "");
-			gp.loadCAP(GPCommands.getRawCap("C:\\Users\\Jean\\Desktop\\workspace2\\SmartSafe/build/smartsafe/server/javacard/server.cap").toBytes());
+			gp.loadCAP(GPCommands.getRawCap("../SmartSafeServer/build/smartsafe/server/javacard/server.cap").toBytes());
 			gp.installForInstallAndMakeSelectable(packAid, appAid, appAid, "", "");
 		} catch (GPException e) {
 			e.printStackTrace();

@@ -11,6 +11,7 @@ public class Package {
 	private String name;
 	private Path path;
 	private List<String> applets;
+	private List<StringHex> appletsAID;
 	private List<String> imports;
 	
 	Package(String name, Path path) {
@@ -38,6 +39,12 @@ public class Package {
 	}
 	public List<String> getApplets() {
 		return applets;
+	}
+	public void setAppletsAID(List<StringHex> appletsAID) {
+		this.appletsAID = appletsAID;
+	}
+	public List<StringHex> getAppletsAID() {
+		return appletsAID;
 	}
 	public List<String> getImports() {
 		return imports;

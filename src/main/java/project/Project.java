@@ -105,7 +105,7 @@ public class Project {
 		for (Package p : packages) {
 			if (!Compiler.compile(target.toString(), Paths.get(path).toString() + "/src/", p.getName().replace('.', '/'), false, extraCP))
 				throw new CompilerException("Error in compilation of " + p.getName());
-			if (!Compiler.convert(p.getName(), p.getFormattedAid(), "1.0", target.toString() + "\\", false, exportPaths, p.getApplets()))
+			if (!Compiler.convert(p.getName(), p.getFormattedAid(), "1.0", target.toString() + "\\", false, exportPaths, p.getApplets(), p.getAppletsAID()))
 				throw new CompilerException("Error in conversion of " + p.getName());
 			
 		}

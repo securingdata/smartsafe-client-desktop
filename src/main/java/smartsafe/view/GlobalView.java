@@ -285,10 +285,10 @@ public class GlobalView {
 					GlobalView.getGroups().getChildren().add(new TreeItem<String>(groupName.getText()));
 				}
 				else if (sw == SmartSafeAppli.SW_FILE_FULL) {
-					errorDialog("No more group can be created (smart card is full) !");
+					errorDialog(Messages.get("GROUP_ERROR_1"));
 				}
 				else {
-					errorDialog("The group has not been created with an undefined error: " + new StringHex(sw).toString());
+					errorDialog(Messages.get("GROUP_ERROR_2") + new StringHex(sw).toString());
 				}
 			}
 			return null;
@@ -301,9 +301,9 @@ public class GlobalView {
 		Dialog<String> dialog = new Dialog<>();
 		ButtonType ok;
 		if (selectedEntry == null)
-			ok = initDialog(dialog, Images.NEW_ENTRY, "New entry");
+			ok = initDialog(dialog, Images.NEW_ENTRY, Messages.get("NEW_ENTRY_DIALOG"));
 		else
-			ok = initDialog(dialog, Images.EDIT, "Edit entry");
+			ok = initDialog(dialog, Images.EDIT, Messages.get("EDIT_ENTRY_DIALOG"));
 		
 		
 		HBox exp = new HBox(4);
@@ -311,13 +311,13 @@ public class GlobalView {
 		expires.setMaxWidth(160);
 		exp.getChildren().add(expires);
 		Button b;
-		exp.getChildren().add(b = new Button("T+1 month"));
+		exp.getChildren().add(b = new Button(Messages.get("T_PLUS_1_MONTH")));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(1)));
-		exp.getChildren().add(b = new Button("T+3 months"));
+		exp.getChildren().add(b = new Button(Messages.get("T_PLUS_3_MONTHS")));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(3)));
-		exp.getChildren().add(b = new Button("T+6 months"));
+		exp.getChildren().add(b = new Button(Messages.get("T_PLUS_6_MONTHS")));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(6)));
-		exp.getChildren().add(b = new Button("T+1 year"));
+		exp.getChildren().add(b = new Button(Messages.get("T_PLUS_1_YEAR")));
 		b.setOnAction(event -> expires.setValue(LocalDate.now().plusMonths(12)));
 		
 		HBox pass = new HBox(4);
@@ -327,11 +327,11 @@ public class GlobalView {
 		password.setMinWidth(363);
 		password2.setMinWidth(363);
 		pass.getChildren().add(password);
-		pass.getChildren().add(tb = new ToggleButton("Show"));
+		pass.getChildren().add(tb = new ToggleButton(Messages.get("ENTRY_SHOW")));
 		tb.setOnAction(event -> {
 			pass.getChildren().set(0, tb.isSelected() ? password2 : password);
 		});
-		pass.getChildren().add(new Button("Random"));
+		pass.getChildren().add(new Button(Messages.get("ENTRY_RANDOM")));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
@@ -342,17 +342,17 @@ public class GlobalView {
 		TextField url = new TextField();
 		TextArea notes = new TextArea();
 		
-		gp.add(new Label("* Identifier:"), 0, 0);
+		gp.add(new Label(Messages.get("ENTRY_IDENTIFIER")), 0, 0);
 		gp.add(identifier, 1, 0);
-		gp.add(new Label("* User name:"), 0, 1);
+		gp.add(new Label(Messages.get("ENTRY_USER_NAME")), 0, 1);
 		gp.add(userName, 1, 1);
-		gp.add(new Label("Password:"), 0, 2);
+		gp.add(new Label(Messages.get("ENTRY_PASSWORD")), 0, 2);
 		gp.add(pass, 1, 2);
-		gp.add(new Label("Expires:"), 0, 3);
+		gp.add(new Label(Messages.get("ENTRY_EXPIRES")), 0, 3);
 		gp.add(exp, 1, 3);
-		gp.add(new Label("URL:"), 0, 4);
+		gp.add(new Label(Messages.get("ENTRY_URL")), 0, 4);
 		gp.add(url, 1, 4);
-		gp.add(new Label("Notes:"), 0, 5);
+		gp.add(new Label(Messages.get("ENTRY_NOTES")), 0, 5);
 		gp.add(notes, 1, 5);
 		
 		if (selectedEntry != null) {
@@ -400,11 +400,11 @@ public class GlobalView {
 					entry = new Entry(identifier.getText(), userName.getText());
 					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry).getStatusWord();
 					if (sw == SmartSafeAppli.SW_FILE_FULL) {
-						errorDialog("No more entry can be created (current group is full) !");
+						errorDialog(Messages.get("ENTRY_ERROR_1"));
 						return null;
 					}
 					else if (sw != SmartSafeAppli.SW_NO_ERROR) {
-						errorDialog("The entry has not been created with an undefined error: " + new StringHex(sw).toString());
+						errorDialog(Messages.get("ENTRY_ERROR_2") + new StringHex(sw).toString());
 						return null;
 					}
 					table.getItems().add(entry);
@@ -429,15 +429,17 @@ public class GlobalView {
 	}
 	public static void deleteDialog(TreeItem<String> group, Entry entry) {
 		Dialog<String> dialog = new Dialog<>();
-		ButtonType ok = initDialog(dialog, Images.DELETE, "Delete ?");
+		ButtonType ok = initDialog(dialog, Images.DELETE, Messages.get("DELETE_DIALOG"));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
 		gp.setVgap(2);
 
 		ToggleGroup tGroup = new ToggleGroup();
-		RadioButton rGroup = new RadioButton("Delete group: " + group.getValue());
-		RadioButton rEntry = new RadioButton(entry == null ? "No entry selected!" : "Delete entry: " + entry.getFullIdentifier().replace("\n", "//"));
+		RadioButton rGroup = new RadioButton(Messages.get("DELETE_GROUP") + group.getValue());
+		RadioButton rEntry = new RadioButton(entry == null ? 
+												Messages.get("DELETE_NO_ENTRY") : 
+												Messages.get("DELETE_ENTRY") + entry.getFullIdentifier().replace("\n", "//"));
 		if (entry == null) {
 			rEntry.setDisable(true);
 			rGroup.setSelected(true);
@@ -478,7 +480,7 @@ public class GlobalView {
 		Dialog<String> dialog = new Dialog<>();
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.ABOUT);
-		dialog.setTitle("About");
+		dialog.setTitle(Messages.get("ABOUT_DIALOG"));
 		dialog.setHeaderText(null);
 		
 		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
@@ -488,15 +490,15 @@ public class GlobalView {
 		Label l;
 		gp.setHgap(5);
 		gp.setVgap(5);
-		gp.add(new Label("Server version:"), 0, 0);
+		gp.add(new Label(Messages.get("ABOUT_SERVER")), 0, 0);
 		if (Controls.getAppli() != null)
 			gp.add(new Label(Controls.getAppli().getVersion()), 1, 0);
 		else
-			gp.add(new Label("Smart card not connected !"), 1, 0);
+			gp.add(new Label(Messages.get("ABOUT_NO_CARD")), 1, 0);
 
-		gp.add(new Label("Client version:"), 0, 1);
+		gp.add(new Label(Messages.get("ABOUT_CLIENT")), 0, 1);
 		gp.add(new Label(Version.version), 1, 1);
-		gp.add(new Label("Report a bug ?"), 0, 2);
+		gp.add(new Label(Messages.get("ABOUT_BUG")), 0, 2);
 		gp.add(l = new Label("contact.smartthings@gmail.com"), 1, 2);
 		l.setTextFill(Color.BLUE);
 		dialog.getDialogPane().setContent(gp);

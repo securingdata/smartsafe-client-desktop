@@ -21,14 +21,14 @@ public class SmartSafeAppli extends Application {
 	public static final short SW_FILE_FULL = (short) 0x6A84;
 	public static final short SW_DATA_REMAINING = (short) 0x6310;
 	
-	private String aid;
+	private final String aid;
 	private String selectedGroup;
 	private Entry selectedEntry;
 	private Map<String, List<Entry>> groups;
 	
 	public SmartSafeAppli(CardTerminal reader) {
 		super(reader);
-		aid = "A0 00 00 00 00 20 00 00";
+		aid = new StringHex("SmartSafeApp".getBytes()).toString();
 	}
 	
 	public Set<String> getGroups() {

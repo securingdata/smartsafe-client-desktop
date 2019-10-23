@@ -12,5 +12,5 @@ TODO
 
 ## Quick start
 
-TODO
+mvn clean compile assembly:single
 

@@ -7,7 +7,8 @@ public class Messages {
 	private static Locale locale;
 	private static ResourceBundle messages;
 	static {
-		locale = new Locale("en","US");
+		//locale = new Locale("en","US");
+		locale = new Locale("fr","FR");
 		messages = ResourceBundle.getBundle("MessagesBundle", locale);
 	}
 	
