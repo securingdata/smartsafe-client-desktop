@@ -102,10 +102,13 @@ public class GlobalView {
 		m.getItems().add(Controls.getMenuItem(Controls.COPY_PASS));
 		m.getItems().add(Controls.getMenuItem(Controls.SHOW_PASS));
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_HELP")));
-		//preferences
-		//stats
-		//updates
 		m.getItems().add(Controls.getMenuItem(Controls.HELP));
+		m.getItems().add(new SeparatorMenuItem());
+		m.getItems().add(Controls.getMenuItem(Controls.BACKUP));
+		m.getItems().add(Controls.getMenuItem(Controls.UPDATE));
+		m.getItems().add(Controls.getMenuItem(Controls.PROPERTIES));
+		m.getItems().add(Controls.getMenuItem(Controls.PREFERENCES));
+		m.getItems().add(new SeparatorMenuItem());
 		m.getItems().add(Controls.getMenuItem(Controls.ABOUT));
 		
 		
@@ -128,18 +131,22 @@ public class GlobalView {
 			
 			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_IDENTIFIER")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getIdentifier());
+			column.prefWidthProperty().bind(table.widthProperty().divide(5));
 			
 			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_USER")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getUserName());
+			column.prefWidthProperty().bind(table.widthProperty().divide(5));
 			
 			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_PASSWORD")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getPassword());
+			column.prefWidthProperty().bind(table.widthProperty().divide(5));
 			
 			table.getColumns().add(column = new TableColumn<>(Messages.get("TABLE_URL")));
 			column.setCellValueFactory(cellData -> cellData.getValue().getUrl());
+			column.prefWidthProperty().bind(table.widthProperty().multiply(2).divide(5));
 			
-			//table.getSelectionModel().setCellSelectionEnabled(true);
 			table.setPrefHeight(Double.MAX_VALUE);
+			table.setPlaceholder(new Label(""));
 			
 			table.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
 				Controls.getEntrySelectedProperty().set(newValue != null);
@@ -154,11 +161,17 @@ public class GlobalView {
 					lastUpdate.setText(formatDate(newValue.getLastUpdate().get()));
 					if (newValue.getExpiresDate().get() == null)
 						expiresOn.setText(Messages.get("DETAILS_NEVER"));
-					else
-						expiresOn.setText(formatDate(newValue.getExpiresDate().get()));//TODO
+					else {
+						expiresOn.setText(formatDate(newValue.getExpiresDate().get()));//TODO color
+						if (LocalDate.now().isAfter(newValue.getExpiresDate().get())) {
+							expiresOn.setTextFill(Color.RED);
+						}
+						else {
+							expiresOn.setTextFill(Color.BLACK);
+						}
+					}
 					notes.setText(newValue.getNotes().get());
 				}
-				
 			});
 		}
 		return table;
@@ -183,7 +196,7 @@ public class GlobalView {
 		return details;
 	}
 	private static String formatDate(LocalDate date) {
-		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));//TODO
+		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));//TODO prefs
 	}
 	private static Dialog<ButtonType> errorDialog(String error) {
 		Dialog<ButtonType> dialog = new Dialog<ButtonType>();
@@ -235,7 +248,7 @@ public class GlobalView {
 		okButton.setDisable(true);
 
 		password.textProperty().addListener((observable, oldValue, newValue) -> {
-			okButton.setDisable(newValue.trim().isEmpty());
+			okButton.setDisable(newValue.isEmpty());
 		});
 
 		dialog.getDialogPane().setContent(gp);
@@ -464,12 +477,52 @@ public class GlobalView {
 			if (dialogButton == ok) {
 				if (tGroup.getSelectedToggle() == rGroup) {
 					Controls.getAppli().deleteGroup(group.getValue());
-					GlobalView.getGroups().getChildren().remove(group);
+					root.getChildren().remove(group);
+					groupsView.getSelectionModel().clearSelection();
 				}
 				else {
 					Controls.getAppli().deleteEntry(entry);
 					table.getItems().remove(entry);
 				}
+			}
+			return null;
+		});
+		
+		dialog.showAndWait();
+	}
+	public static void backupDialog() {
+		Dialog<String> dialog = new Dialog<>();
+		ButtonType ok = initDialog(dialog, Images.CONNECT, Messages.get("BACKUP_DIALOG"));//TODO image
+		
+		HBox filePane = new HBox(4);
+		filePane.getChildren().add(new TextField());
+		filePane.getChildren().add(new Button(Messages.get("BACKUP_BROWSE")));
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(2);
+		gp.setVgap(2);
+
+		PasswordField password = new PasswordField();
+		
+		gp.add(new Label(Messages.get("BACKUP_CHOOSER")), 0, 0);
+		gp.add(filePane, 1, 0);
+		gp.add(new Label(Messages.get("BACKUP_PASSWORD")), 0, 1);
+		gp.add(password, 1, 1);
+		
+		
+		Node okButton = dialog.getDialogPane().lookupButton(ok);
+		okButton.setDisable(true);
+
+		password.textProperty().addListener((observable, oldValue, newValue) -> {
+			okButton.setDisable(newValue.isEmpty());
+		});
+
+		dialog.getDialogPane().setContent(gp);
+		Platform.runLater(() -> password.requestFocus());
+		
+		dialog.setResultConverter(dialogButton -> {
+			if (dialogButton == ok) {
+				
 			}
 			return null;
 		});

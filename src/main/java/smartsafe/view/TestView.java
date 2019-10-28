@@ -37,7 +37,7 @@ public class TestView extends Application {
 		launch(args);
 	}
 	
-	public static void build() {
+	public static void build() {//TODO move to server repo
 		Project p = new Project("SmartSafe", "..\\SmartSafeServer");
 		p.parsePckgs();
 		p.getPackages().get(0).setAid(PACK_AID);
@@ -93,7 +93,7 @@ public class TestView extends Application {
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		try {
-			Scene scene = new Scene(GlobalView.createView(), 600, 400);
+			Scene scene = new Scene(GlobalView.createView(), 700, 400);
 			primaryStage.setTitle("SmartSafe");
 			primaryStage.setScene(scene);
 			primaryStage.show();

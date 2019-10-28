@@ -144,6 +144,26 @@ public class Controls {
 		//TODO
 	});
 	
+	public static final String BACKUP = Messages.get("BACKUP");
+	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
+		GlobalView.backupDialog();
+	});
+	
+	public static final String UPDATE = Messages.get("UPDATE");
+	public static final Action ACTION_UPDATE = new Action(UPDATE, false, null, params -> {
+		//TODO
+	});
+	
+	public static final String PROPERTIES = Messages.get("PROPERTIES");
+	public static final Action ACTION_PROPERTIES = new Action(PROPERTIES, false, null, params -> {
+		//TODO
+	});
+	
+	public static final String PREFERENCES = Messages.get("PREFERENCES");
+	public static final Action ACTION_PREFERENCES = new Action(PREFERENCES, false, null, params -> {
+		//TODO
+	});
+	
 	public static final String ABOUT = Messages.get("ABOUT");
 	public static final Action ACTION_ABOUT = new Action(ABOUT, false, null, params -> {
 		GlobalView.aboutDialog();
@@ -199,6 +219,7 @@ public class Controls {
 		ITEMS.add(mi = new MenuItem(DELETE, new ImageView(Images.DELETE)));
 		addDisableListener(mi, groupSelected);
 		mi.setOnAction(event -> ACTION_DELETE.run());
+		mi.setAccelerator(KeyCombination.valueOf("Delete"));
 		
 		ITEMS.add(mi = new MenuItem(EDIT, new ImageView(Images.EDIT)));
 		addDisableListener(mi, entrySelected);
@@ -228,6 +249,18 @@ public class Controls {
 		ITEMS.add(mi = new MenuItem(HELP, new ImageView(Images.HELP)));
 		mi.setOnAction(event -> ACTION_HELP.run());
 		mi.setAccelerator(KeyCombination.valueOf("F1"));
+		
+		ITEMS.add(mi = new MenuItem(BACKUP));//TODO image
+		mi.setOnAction(event -> ACTION_BACKUP.run());
+		
+		ITEMS.add(mi = new MenuItem(UPDATE));//TODO image
+		mi.setOnAction(event -> ACTION_UPDATE.run());
+		
+		ITEMS.add(mi = new MenuItem(PROPERTIES));//TODO image
+		mi.setOnAction(event -> ACTION_PROPERTIES.run());
+		
+		ITEMS.add(mi = new MenuItem(PREFERENCES));//TODO image
+		mi.setOnAction(event -> ACTION_PREFERENCES.run());
 		
 		ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
 		mi.setOnAction(event -> ACTION_ABOUT.run());

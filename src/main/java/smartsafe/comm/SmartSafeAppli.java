@@ -175,6 +175,8 @@ public class SmartSafeAppli extends Application {
 		return data;
 	}
 	public APDUResponse setData(byte indexData, String data) {
+		if (data == null)
+			data = "";
 		switch (indexData) {
 			case Entry.INDEX_PASSWORD:
 				selectedEntry.setPassword(data);

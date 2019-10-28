@@ -4,12 +4,9 @@ import java.util.Locale;
 import java.util.ResourceBundle;
 
 public class Messages {
-	private static Locale locale;
 	private static ResourceBundle messages;
 	static {
-		//locale = new Locale("en","US");
-		locale = new Locale("fr","FR");
-		messages = ResourceBundle.getBundle("MessagesBundle", locale);
+		messages = ResourceBundle.getBundle("MessagesBundle", Locale.ENGLISH);
 	}
 	
 	public static String get(String key) {
