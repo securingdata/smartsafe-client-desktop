@@ -70,7 +70,8 @@ public class Entry {
 		this.password.set(password);
 	}
 	public void maskPassword() {
-		password.set(password.get().replaceAll(".", "\\*"));
+		if (password.get() != null)
+			password.set(password.get().replaceAll(".", "\\*"));
 	}
 
 	public ObjectProperty<LocalDate> getLastUpdate() {

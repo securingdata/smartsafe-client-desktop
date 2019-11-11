@@ -144,6 +144,11 @@ public class Controls {
 		//TODO
 	});
 	
+	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
+	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
+		GlobalView.changePINDialog();
+	});
+	
 	public static final String BACKUP = Messages.get("BACKUP");
 	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
 		GlobalView.backupDialog();
@@ -236,12 +241,12 @@ public class Controls {
 		mi.setOnAction(event -> ACTION_COPY_USER.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+X"));
 		
-		ITEMS.add(mi = new MenuItem(COPY_PASS, new ImageView(Images.COPY)));
+		ITEMS.add(mi = new MenuItem(COPY_PASS, new ImageView(Images.COPY_PASS)));
 		addDisableListener(mi, entrySelected);
 		mi.setOnAction(event -> ACTION_COPY_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+C"));
 		
-		ITEMS.add(mi = new MenuItem(SHOW_PASS));
+		ITEMS.add(mi = new MenuItem(SHOW_PASS, new ImageView(Images.SHOW_PASS)));
 		addDisableListener(mi, entrySelected);
 		mi.setOnAction(event -> ACTION_SHOW_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+S"));
@@ -250,16 +255,23 @@ public class Controls {
 		mi.setOnAction(event -> ACTION_HELP.run());
 		mi.setAccelerator(KeyCombination.valueOf("F1"));
 		
-		ITEMS.add(mi = new MenuItem(BACKUP));//TODO image
+		ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
+		addDisableListener(mi, cardConnected);
+		mi.setOnAction(event -> ACTION_CHANGE_PIN.run());
+		
+		ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
+		addDisableListener(mi, cardConnected);
 		mi.setOnAction(event -> ACTION_BACKUP.run());
 		
-		ITEMS.add(mi = new MenuItem(UPDATE));//TODO image
+		ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
+		addDisableListener(mi, cardConnected);
 		mi.setOnAction(event -> ACTION_UPDATE.run());
 		
-		ITEMS.add(mi = new MenuItem(PROPERTIES));//TODO image
+		ITEMS.add(mi = new MenuItem(PROPERTIES, new ImageView(Images.PROPERTIES)));
+		addDisableListener(mi, cardConnected);
 		mi.setOnAction(event -> ACTION_PROPERTIES.run());
 		
-		ITEMS.add(mi = new MenuItem(PREFERENCES));//TODO image
+		ITEMS.add(mi = new MenuItem(PREFERENCES, new ImageView(Images.PREFERENCES)));
 		mi.setOnAction(event -> ACTION_PREFERENCES.run());
 		
 		ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
@@ -314,10 +326,10 @@ public class Controls {
 			appli.coldReset();
 			appli.select();
 			APDUResponse resp = appli.authenticate(password);
-			if (resp.getStatusWord() == (short) 0x9000)
+			if (resp.getStatusWord() == (short) SmartSafeAppli.SW_NO_ERROR)
 				return;
 			else
-				System.out.println("Remaining : " + (int) (resp.getStatusWord() & 0xF));
+				GlobalView.errorDialog(Messages.get("CONNECT_ERROR") +  + (int) (resp.getStatusWord() & 0xF));
 			appli.disconnect();
 		} catch (GPException e) {}
 		appli = null;

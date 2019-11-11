@@ -4,6 +4,7 @@ package smartsafe.view;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 import javax.smartcardio.CardTerminal;
 
@@ -13,6 +14,7 @@ import javafx.geometry.Orientation;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
@@ -39,9 +41,7 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -94,6 +94,10 @@ public class GlobalView {
 		m.getItems().add(Controls.getMenuItem(Controls.NEW_ENTRY));
 		m.getItems().add(Controls.getMenuItem(Controls.DELETE));
 		m.getItems().add(new SeparatorMenuItem());
+		m.getItems().add(Controls.getMenuItem(Controls.CHANGE_PIN));
+		m.getItems().add(Controls.getMenuItem(Controls.BACKUP));
+		m.getItems().add(Controls.getMenuItem(Controls.UPDATE));
+		m.getItems().add(new SeparatorMenuItem());
 		m.getItems().add(Controls.getMenuItem(Controls.EXIT));
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_EDIT")));
 		m.getItems().add(Controls.getMenuItem(Controls.EDIT));
@@ -104,8 +108,6 @@ public class GlobalView {
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_HELP")));
 		m.getItems().add(Controls.getMenuItem(Controls.HELP));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.BACKUP));
-		m.getItems().add(Controls.getMenuItem(Controls.UPDATE));
 		m.getItems().add(Controls.getMenuItem(Controls.PROPERTIES));
 		m.getItems().add(Controls.getMenuItem(Controls.PREFERENCES));
 		m.getItems().add(new SeparatorMenuItem());
@@ -198,7 +200,7 @@ public class GlobalView {
 	private static String formatDate(LocalDate date) {
 		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));//TODO prefs
 	}
-	private static Dialog<ButtonType> errorDialog(String error) {
+	public static Dialog<ButtonType> errorDialog(String error) {
 		Dialog<ButtonType> dialog = new Dialog<ButtonType>();
 		dialog.setTitle(Messages.get("ERROR_DIALOG"));
 		final DialogPane dialogPane = dialog.getDialogPane();
@@ -257,6 +259,46 @@ public class GlobalView {
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
 				Controls.createAppli(readerList.getValue(), password.getText());
+			}
+			return null;
+		});
+		
+		dialog.showAndWait();
+	}
+	
+	public static void changePINDialog() {
+		Dialog<String> dialog = new Dialog<>();
+		ButtonType ok = initDialog(dialog, Images.PIN, Messages.get("CHANGE_PIN_DIALOG"));
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(2);
+		gp.setVgap(2);
+
+		PasswordField password = new PasswordField();
+		PasswordField password2 = new PasswordField();
+		
+		gp.add(new Label(Messages.get("CHANGE_PIN_NEW")), 0, 0);
+		gp.add(password, 1, 0);
+		gp.add(new Label(Messages.get("CHANGE_PIN_CONFIRM")), 0, 1);
+		gp.add(password2, 1, 1);
+		
+		
+		Node okButton = dialog.getDialogPane().lookupButton(ok);
+		okButton.setDisable(true);
+
+		password.textProperty().addListener((observable, oldValue, newValue) -> {
+			okButton.setDisable(newValue.isEmpty() || !password.getText().equals(password2.getText()));
+		});
+		password2.textProperty().addListener((observable, oldValue, newValue) -> {
+			okButton.setDisable(newValue.isEmpty() || !password.getText().equals(password2.getText()));
+		});
+
+		dialog.getDialogPane().setContent(gp);
+		Platform.runLater(() -> password.requestFocus());
+		
+		dialog.setResultConverter(dialogButton -> {
+			if (dialogButton == ok) {
+				Controls.getAppli().changePin(password.getText());
 			}
 			return null;
 		});
@@ -344,7 +386,8 @@ public class GlobalView {
 		tb.setOnAction(event -> {
 			pass.getChildren().set(0, tb.isSelected() ? password2 : password);
 		});
-		pass.getChildren().add(new Button(Messages.get("ENTRY_RANDOM")));
+		pass.getChildren().add(b = new Button(Messages.get("ENTRY_RANDOM")));
+		b.setOnAction(event -> randomDialog(password));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
@@ -434,6 +477,97 @@ public class GlobalView {
 				Controls.getAppli().setData(Entry.INDEX_URL, url.getText());
 				Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText());
 				entry.maskPassword();
+			}
+			return null;
+		});
+		
+		dialog.showAndWait();
+	}
+	public static void randomDialog(PasswordField pf) {
+		Dialog<String> dialog = new Dialog<>();
+		ButtonType ok = initDialog(dialog, Images.EDIT, Messages.get("RANDOM_DIALOG"));
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(2);
+		gp.setVgap(2);
+		
+		Button generate = new Button(Messages.get("RANDOM_GENERATE"));
+		Spinner<Integer> passwordSize = new Spinner<>(1, 128, 16);
+		TextField specialValues = new TextField("#$%?!/*=");
+		final CheckBox num, alpha, upper, special;
+		
+		gp.add(new Label(Messages.get("RANDOM_SIZE")), 0, 0);
+		gp.add(passwordSize, 1, 0);
+		gp.add(num = new CheckBox(Messages.get("RANDOM_NUMERIC")), 0, 1);
+		gp.add(alpha = new CheckBox(Messages.get("RANDOM_ALPHABETIC")), 0, 2);
+		gp.add(upper = new CheckBox(Messages.get("RANDOM_UPPER")), 1, 2);
+		gp.add(special = new CheckBox(Messages.get("RANDOM_SPECIAL")), 0, 3);
+		gp.add(specialValues, 1, 3);
+		
+		num.setSelected(true);
+		alpha.setSelected(true);
+		upper.setSelected(true);
+		
+		BorderPane hb = new BorderPane();
+		Label labelPass = new Label("");
+		labelPass.setTextFill(Color.GRAY);
+		BorderPane p = new BorderPane();
+		p.setCenter(labelPass);
+		p.setBorder(new Border(new BorderStroke(Color.GRAY, BorderStrokeStyle.SOLID, new CornerRadii(6), new BorderWidths(3))));
+		
+		hb.setCenter(p);
+		hb.setRight(generate);
+		hb.setTop(new Label());
+		
+		BorderPane bp = new BorderPane();
+		bp.setCenter(gp);
+		bp.setBottom(hb);
+		
+		Node okButton = dialog.getDialogPane().lookupButton(ok);
+		okButton.setDisable(true);
+		generate.setOnAction(event -> {
+			if (!num.isSelected() && !alpha.isSelected() && !upper.isSelected() && (!special.isSelected() || (specialValues.getText().isEmpty())))
+				return;
+			
+			String newPass = "";
+			String spe = specialValues.getText();
+			for (int i = 0; i < passwordSize.getValue().intValue(); /*no ++*/) {
+				switch(ThreadLocalRandom.current().nextInt(0, 4)) {
+					case 0:
+						if (num.isSelected()) {
+							newPass += "" + ThreadLocalRandom.current().nextInt(0, 10);
+							i++;
+						}
+						break;
+					case 1:
+						if (alpha.isSelected()) {
+							newPass += (char) ('a' + ThreadLocalRandom.current().nextInt(0, 26));
+							i++;
+						}
+						break;
+					case 2:
+						if (upper.isSelected()) {
+							newPass += (char) ('A' + ThreadLocalRandom.current().nextInt(0, 26));
+							i++;
+						}
+						break;
+					case 3:
+						if (special.isSelected()) {
+							newPass += spe.charAt(ThreadLocalRandom.current().nextInt(0, spe.length()));
+						}
+						break;
+				}
+			}
+			labelPass.setText(newPass);
+			okButton.setDisable(false);
+		});
+		
+		dialog.getDialogPane().setContent(bp);
+		Platform.runLater(() -> generate.requestFocus());
+		
+		dialog.setResultConverter(dialogButton -> {
+			if (dialogButton == ok) {
+				pf.setText(labelPass.getText());
 			}
 			return null;
 		});
