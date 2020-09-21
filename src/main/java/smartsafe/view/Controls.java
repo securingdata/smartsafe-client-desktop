@@ -41,25 +41,6 @@ public class Controls {
 	
 	
 	//==================== ACTIONS ====================\\
-	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
-	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
-		GlobalView.newGroupDialog();
-	});
-	public static final String NEW_ENTRY = Messages.get("NEW_ENTRY");
-	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
-		GlobalView.entryDialog(null);
-	});
-	
-	public static final String DELETE = Messages.get("DELETE");
-	public static final Action ACTION_DELETE = new Action(DELETE, false, null, params -> {
-		TreeItem<String> group = GlobalView.getGroupsView().getSelectionModel().getSelectedItem();
-		if (group != null) {
-			Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
-			GlobalView.deleteDialog(group, e);
-		}
-		
-	});
-	
 	public static final String CONNECT = Messages.get("CONNECT");
 	public static final String DISCONNECT = Messages.get("DISCONNECT");
 	public static final Action ACTION_CONNECT = new Action(CONNECT, false, null, params -> {
@@ -93,6 +74,53 @@ public class Controls {
 		for (String group : appli.getGroups())
 			GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
 		appli.getAivailableMemory();
+	});
+	
+	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
+	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
+		GlobalView.newGroupDialog();
+	});
+	
+	public static final String NEW_ENTRY = Messages.get("NEW_ENTRY");
+	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
+		GlobalView.entryDialog(null);
+	});
+	
+	public static final String DELETE = Messages.get("DELETE");
+	public static final Action ACTION_DELETE = new Action(DELETE, false, null, params -> {
+		TreeItem<String> group = GlobalView.getGroupsView().getSelectionModel().getSelectedItem();
+		if (group != null) {
+			Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+			GlobalView.deleteDialog(group, e);
+		}
+		
+	});
+	
+	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
+	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
+		GlobalView.changePINDialog();
+	});
+	
+	public static final String BACKUP = Messages.get("BACKUP");
+	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
+		GlobalView.backupDialog();
+	});
+	
+	public static final String INIT = Messages.get("INIT");
+	public static final Action ACTION_INIT = new Action(INIT, false, null, params -> {
+		
+	});
+	
+	public static final String UPDATE = Messages.get("UPDATE");
+	public static final Action ACTION_UPDATE = new Action(UPDATE, false, null, params -> {
+		GlobalView.manageServerDialog();
+	});
+	
+	public static final String EXIT = Messages.get("EXIT");
+	public static final Action ACTION_EXIT = new Action(EXIT, false, null, params -> {
+		if (appli != null)
+			appli.disconnect();
+		System.exit(0);
 	});
 	
 	public static final String EDIT = Messages.get("EDIT");
@@ -144,21 +172,6 @@ public class Controls {
 		//TODO
 	});
 	
-	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
-	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
-		GlobalView.changePINDialog();
-	});
-	
-	public static final String BACKUP = Messages.get("BACKUP");
-	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
-		GlobalView.backupDialog();
-	});
-	
-	public static final String UPDATE = Messages.get("UPDATE");
-	public static final Action ACTION_UPDATE = new Action(UPDATE, false, null, params -> {
-		//TODO
-	});
-	
 	public static final String PROPERTIES = Messages.get("PROPERTIES");
 	public static final Action ACTION_PROPERTIES = new Action(PROPERTIES, false, null, params -> {
 		//TODO
@@ -172,13 +185,6 @@ public class Controls {
 	public static final String ABOUT = Messages.get("ABOUT");
 	public static final Action ACTION_ABOUT = new Action(ABOUT, false, null, params -> {
 		GlobalView.aboutDialog();
-	});
-	
-	public static final String EXIT = Messages.get("EXIT");
-	public static final Action ACTION_EXIT = new Action(EXIT, false, null, params -> {
-		if (appli != null)
-			appli.disconnect();
-		System.exit(0);
 	});
 	//================== END ACTIONS ==================\\
 	
@@ -226,6 +232,24 @@ public class Controls {
 		mi.setOnAction(event -> ACTION_DELETE.run());
 		mi.setAccelerator(KeyCombination.valueOf("Delete"));
 		
+		ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
+		addDisableListener(mi, cardConnected);
+		mi.setOnAction(event -> ACTION_CHANGE_PIN.run());
+		
+		ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
+		addDisableListener(mi, cardConnected);
+		mi.setOnAction(event -> ACTION_BACKUP.run());
+		
+		ITEMS.add(mi = new MenuItem(INIT, new ImageView(Images.INIT)));
+		mi.setOnAction(event -> ACTION_INIT.run());
+		
+		ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
+		mi.setOnAction(event -> ACTION_UPDATE.run());
+		
+		ITEMS.add(mi = new MenuItem(EXIT));
+		mi.setOnAction(event -> ACTION_EXIT.run());
+		mi.setAccelerator(KeyCombination.valueOf("Alt+F4"));
+		
 		ITEMS.add(mi = new MenuItem(EDIT, new ImageView(Images.EDIT)));
 		addDisableListener(mi, entrySelected);
 		mi.setOnAction(event -> ACTION_EDIT.run());
@@ -255,18 +279,6 @@ public class Controls {
 		mi.setOnAction(event -> ACTION_HELP.run());
 		mi.setAccelerator(KeyCombination.valueOf("F1"));
 		
-		ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
-		addDisableListener(mi, cardConnected);
-		mi.setOnAction(event -> ACTION_CHANGE_PIN.run());
-		
-		ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
-		addDisableListener(mi, cardConnected);
-		mi.setOnAction(event -> ACTION_BACKUP.run());
-		
-		ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
-		addDisableListener(mi, cardConnected);
-		mi.setOnAction(event -> ACTION_UPDATE.run());
-		
 		ITEMS.add(mi = new MenuItem(PROPERTIES, new ImageView(Images.PROPERTIES)));
 		addDisableListener(mi, cardConnected);
 		mi.setOnAction(event -> ACTION_PROPERTIES.run());
@@ -277,22 +289,9 @@ public class Controls {
 		ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
 		mi.setOnAction(event -> ACTION_ABOUT.run());
 		
-		ITEMS.add(mi = new MenuItem(EXIT));
-		mi.setOnAction(event -> ACTION_EXIT.run());
-		mi.setAccelerator(KeyCombination.valueOf("Alt+F4"));
-		
 		cardConnected.set(false);
 		groupSelected.set(false);
 		entrySelected.set(false);
-	}
-	
-	private static MenuItem createOnDemand(String name) {
-		MenuItem mi;
-		switch(name) {
-			default:
-				mi = null;
-		}
-		return mi;
 	}
 	
 	public static ButtonBase getButton(String name) {
@@ -305,17 +304,11 @@ public class Controls {
 		for (MenuItem mi : ITEMS)
 			if (mi.getText().equals(name))
 				return mi;
-		return createOnDemand(name);
+		return null;
 	}
 	
 	public static void handle(Action action) {
 		action.run();
-		/*if (action.undoable) {
-			undo.add(action);
-			redo.clear();
-			undoableProp.set(!undo.isEmpty());
-			redoableProp.set(false);
-		}*/
 	}
 	public static BooleanProperty getEntrySelectedProperty() {
 		return entrySelected;
@@ -324,12 +317,17 @@ public class Controls {
 		appli = new SmartSafeAppli(reader);
 		try {
 			appli.coldReset();
-			appli.select();
-			APDUResponse resp = appli.authenticate(password);
+			APDUResponse resp = appli.select();
+			if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+				GlobalView.errorDialog(Messages.get("CONNECT_NO_APP"));
+				appli = null;
+				return;
+			}
+			resp = appli.authenticate(password);
 			if (resp.getStatusWord() == (short) SmartSafeAppli.SW_NO_ERROR)
 				return;
 			else
-				GlobalView.errorDialog(Messages.get("CONNECT_ERROR") +  + (int) (resp.getStatusWord() & 0xF));
+				GlobalView.errorDialog(Messages.get("CONNECT_ERROR") + (int) (resp.getStatusWord() & 0xF));
 			appli.disconnect();
 		} catch (GPException e) {}
 		appli = null;
@@ -340,7 +338,7 @@ public class Controls {
 		if (groupName == null) {
 			return;
 		}
-		GlobalView.getTableEntries().getItems().addAll(appli.getEntries(groupName));
+		GlobalView.getTableEntries().getItems().addAll(appli.getEntries(groupName, true));
 	}
 	
 	private static void addDisableListener(ButtonBase b, BooleanProperty prop) {

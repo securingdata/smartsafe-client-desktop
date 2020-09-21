@@ -1,4 +1,4 @@
-package project;
+package compiler.project;
 
 import java.nio.file.Path;
 import java.util.LinkedList;

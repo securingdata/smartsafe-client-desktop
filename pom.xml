@@ -7,7 +7,7 @@
 	<groupId>jean-dubreuil</groupId>
 	<artifactId>SmartSafeClient</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1-SNAPSHOT</version>
+	<version>0.8.5</version>
 	<name>SmartSafeClient</name>
 
 	<build>
@@ -25,7 +25,7 @@
 				<configuration>
 					<archive>
 						<manifest>
-							<mainClass>smartsafe.view.TestView</mainClass>
+							<mainClass>smartsafe.view.LaunchView</mainClass>
 						</manifest>
 					</archive>
 					<descriptorRefs>

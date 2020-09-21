@@ -13,11 +13,13 @@ import org.apache.log4j.Logger;
 
 import connection.APDUResponse;
 import connection.Application;
+import javafx.beans.property.StringProperty;
 import util.Bits;
 import util.StringHex;
 
 public abstract class SCP extends Application implements Bits {
 	private static final Logger logger = Logger.getLogger(SCP.class);
+	private static StringProperty logListener;
 	
 	public enum StaticDerivation {
 		NO_DERIVATION, EMVCPS1_1, VISA, VISA2;
@@ -74,6 +76,10 @@ public abstract class SCP extends Application implements Bits {
 		KEY_INFO_LEN = 2;
 		secLevel = SEC_LEVEL_NO;
 		hostChallenge = new StringHex("1122334455667788");
+	}
+	
+	public static void setLogListener(StringProperty sp) {
+		logListener = sp;
 	}
 	
 	public void setImplementationOption(byte implementation) {
@@ -152,6 +158,12 @@ public abstract class SCP extends Application implements Bits {
 			logger.info("Kmac -> " + new StringHex(getKey((short) (currentKeys + 1)).getEncoded()));
 			logger.info("Kdek -> " + new StringHex(getKey((short) (currentKeys + 2)).getEncoded()));
 		}
+		if (logListener != null) {
+			logListener.set(logListener.get() + "Static master keys:\n");
+			logListener.set(logListener.get() + "Kenc -> " + new StringHex(getKey(currentKeys).getEncoded()) + "\n");
+			logListener.set(logListener.get() + "Kmac -> " + new StringHex(getKey((short) (currentKeys + 1)).getEncoded()) + "\n");
+			logListener.set(logListener.get() + "Kdek -> " + new StringHex(getKey((short) (currentKeys + 2)).getEncoded()) + "\n");
+		}
 		StringHex kdd = null;
 		Cipher cipher = getCipher();
 		
@@ -164,6 +176,8 @@ public abstract class SCP extends Application implements Bits {
 					if (logger.isInfoEnabled()) {
 						logger.info("No static diversification performed.");
 					}
+					if (logListener != null)
+						logListener.set(logListener.get() + "No static diversification performed.\n");
 					return;
 				case EMVCPS1_1://EMVCPS
 					kdd = StringHex.concatenate(keyDivData.get(4, 6), new StringHex("F0 01"), 
@@ -193,6 +207,12 @@ public abstract class SCP extends Application implements Bits {
 				logger.info("Kenc -> " + new StringHex(sEnc.getEncoded()));
 				logger.info("Kmac -> " + new StringHex(sMac.getEncoded()));
 				logger.info("Kdek -> " + new StringHex(kDek.getEncoded()));
+			}
+			if (logListener != null) {
+				logListener.set(logListener.get() + "Diversified master keys:\n");
+				logListener.set(logListener.get() + "Kenc -> " + new StringHex(sEnc.getEncoded()) + "\n");
+				logListener.set(logListener.get() + "Kmac -> " + new StringHex(sMac.getEncoded()) + "\n");
+				logListener.set(logListener.get() + "Kdek -> " + new StringHex(kDek.getEncoded()) + "\n");
 			}
 		} catch (GeneralSecurityException e) {
 			throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());

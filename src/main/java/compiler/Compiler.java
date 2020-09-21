@@ -14,6 +14,8 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import javafx.beans.property.StringProperty;
+
 import org.apache.log4j.Logger;
 
 import util.CustomSecurityManager;
@@ -24,8 +26,9 @@ public class Compiler {
 	private static final Logger LOGGER = Logger.getLogger(Compiler.class);
 	private static final Interceptor interceptor;
 	
+	private static StringProperty logListener;
+	
 	private static final String CONVERTER = "com.sun.javacard.converter.Main";
-	private static final String CAPGEN    = "com.sun.javacard.jcasm.cap.Main";
 
 	private static final String JC_TOOLS   = "lib/tools.jar";
 	private static final String API        = "lib/api.jar";
@@ -68,6 +71,9 @@ public class Compiler {
 		}
 	}
 	
+	public static void setLogListener(StringProperty sp) {
+		logListener = sp;
+	}
 	public static void changeJCVersion(int version) {
 		JC_HOME = "bin/javacard/v_" + version + "/";
 		System.setProperty("jc.home", ResourcesManager.getFileInDir(JC_HOME + API, "lib").toFile().getAbsolutePath());
@@ -81,8 +87,8 @@ public class Compiler {
 		Path gpAPI = ResourcesManager.getFile(GP_HOME + API);
 		List<String> srcFiles = new LinkedList<>();
 		List<String> options = new LinkedList<>();
-		options.add("-source"); options.add("1.2");
-		options.add("-target"); options.add("1.2"); 
+		options.add("-source"); options.add("1.6");
+		options.add("-target"); options.add("1.6");
 		options.add("-d");  options.add(outDir);
 		
 		String classpath = jcAPI.toFile().getAbsolutePath() + ";" + gpAPI.toFile().getAbsolutePath() + ";" + srcDir;
@@ -110,12 +116,13 @@ public class Compiler {
 	    }
 	    catch(Exception e) {}
 	    
-	    if (LOGGER.isInfoEnabled()) {
-	    	List<Diagnostic<? extends JavaFileObject>> list = diagnostics.getDiagnostics();
-	    	for (Diagnostic<? extends JavaFileObject> d : list) {
-	    		LOGGER.info(d);
-        	}
-        }
+    	List<Diagnostic<? extends JavaFileObject>> list = diagnostics.getDiagnostics();
+    	for (Diagnostic<? extends JavaFileObject> d : list) {
+    		if (LOGGER.isInfoEnabled())
+    			LOGGER.info(d);
+    		if (logListener != null)
+    			logListener.set(logListener.get() + d);
+    	}
 	    return result;
 	}
 	
@@ -154,22 +161,16 @@ public class Compiler {
 		String errPrivate = interceptor.getRecord();
 		interceptor.detach();
 		
-		if (LOGGER.isInfoEnabled()) {
-			int endOffset = errPrivate.indexOf("INFOS: conversion completed with ");
-			if (endOffset == -1) {
-				endOffset = 0;
-			}
-			else {
-				endOffset = errPrivate.indexOf("\n", endOffset);
-			}
+		int endOffset = errPrivate.indexOf("INFOS: conversion completed with ");
+		if (endOffset == -1)
+			endOffset = 0;
+		else
+			endOffset = errPrivate.indexOf("\n", endOffset);
+		if (LOGGER.isInfoEnabled())
 			LOGGER.info(errPrivate.substring(0, endOffset));
-		}
+		if (logListener != null)
+			logListener.set(logListener.get() + errPrivate.substring(0, endOffset));
 		
 		return errPrivate.indexOf("INFOS: conversion completed with 0 errors") != -1;
-	}
-	
-	public static void capgen() {
-		String[] args = new String[]{};
-		exec(getMain(JC_HOME + JC_TOOLS, CAPGEN), args);
 	}
 }

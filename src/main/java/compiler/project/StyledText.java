@@ -1,4 +1,4 @@
-package project;
+package compiler.project;
 
 public class StyledText {
 	public final String text;

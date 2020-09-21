@@ -1,4 +1,4 @@
-package project;
+package compiler.project;
 
 import java.util.List;
 import java.util.regex.Matcher;

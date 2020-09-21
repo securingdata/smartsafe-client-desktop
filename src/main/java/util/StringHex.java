@@ -10,7 +10,8 @@ public class StringHex {
 	
 	public StringHex(String string) {
 		string = string.replaceAll(" ", "");
-		assert(string.length() % 2 == 0);
+		if (string.length() % 2 != 0)
+			string = "0" + string;
 		this.data = new ArrayList<>(string.length() / 2);
 		for (int i = 0; i < string.length(); i += 2) {
 			data.add(Short.valueOf(string.substring(i, i + 2), 16).byteValue());

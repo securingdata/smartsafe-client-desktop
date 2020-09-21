@@ -24,4 +24,6 @@ public interface Images {
 	Image PROPERTIES      = new Image(ResourcesManager.getResourceAsStream("icons/properties.gif"));
 	Image SHOW_PASS       = new Image(ResourcesManager.getResourceAsStream("icons/show_pass.gif"));
 	Image UPDATE          = new Image(ResourcesManager.getResourceAsStream("icons/update.gif"));
+	Image INIT            = new Image(ResourcesManager.getResourceAsStream("icons/init.gif"));
+	Image WARNING         = new Image(ResourcesManager.getResourceAsStream("icons/warning.gif"));
 }
