@@ -28,27 +28,24 @@ import javax.smartcardio.CardTerminal;
 import connection.APDUResponse;
 import connection.Application;
 import connection.loader.GPException;
+import smartsafe.Prefs;
 import smartsafe.model.Entry;
 import util.Crypto;
 import util.StringHex;
 
 public class SmartSafeAppli extends Application {
 	private static final byte[] IV = "initvectorsmarts".getBytes();
-	public static final StringHex PACK_AID = new StringHex("SmartSafe2".getBytes());
-	public static final StringHex APP_AID  = new StringHex("SmartSafeApp2".getBytes());
 	
 	public static final short SW_NO_ERROR = (short) 0x9000;
 	public static final short SW_FILE_FULL = (short) 0x6A84;
 	public static final short SW_DATA_REMAINING = (short) 0x6310;
 	
-	private final String aid;
 	private String selectedGroup;
 	private Entry selectedEntry;
 	private Map<String, List<Entry>> groups;
 	
 	public SmartSafeAppli(CardTerminal reader) {
 		super(reader);
-		aid = APP_AID.toString();
 	}
 	
 	public boolean backupData(String file, String password) {
@@ -166,7 +163,7 @@ public class SmartSafeAppli extends Application {
 	}
 	
 	public APDUResponse select() throws GPException {
-		return select(aid);
+		return select(Prefs.getAppAID().toString());
 	}
 	
 	public APDUResponse send(String cmdName, String header, String data, String le) {

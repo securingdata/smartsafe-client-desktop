@@ -179,7 +179,7 @@ public class Controls {
 	
 	public static final String PREFERENCES = Messages.get("PREFERENCES");
 	public static final Action ACTION_PREFERENCES = new Action(PREFERENCES, false, null, params -> {
-		//TODO
+		GlobalView.preferencesDialog();
 	});
 	
 	public static final String ABOUT = Messages.get("ABOUT");

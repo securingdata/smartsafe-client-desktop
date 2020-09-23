@@ -24,11 +24,11 @@ java -jar SmartSafeClient-X.Y.Z-jar-with-dependencies.jar
 
 ## Road map
 The following features are already developed:
- - Ability to connect to a card and perform user operations (password update, reading and writing groups and entries, etc.)
+ * Ability to connect to a card and perform user operations (password update, reading and writing groups and entries, etc.)
+  * Ability to set preferences (language, default settings, etc)
 
 The following features are intended to be developed:
- - Secure messaging between the Client and the Server in order to avoid Man-in-the-middle and replay attacks
- - Ability to perform card content management from an admin password
- - Ability to retrieve information about memory usage in the smart card and other useful stats
- - Ability to set preferences (language, default settings, etc)
- - Adding help content in the rich interface
+ * Secure messaging between the Client and the Server in order to avoid Man-in-the-middle and replay attacks
+ * Ability to perform card content management from an admin password
+ * Ability to retrieve information about memory usage in the smart card and other useful stats
+ * Adding help content in the rich interface

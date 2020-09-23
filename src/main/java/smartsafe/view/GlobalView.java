@@ -73,6 +73,7 @@ import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import smartsafe.Messages;
+import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
@@ -497,7 +498,7 @@ public class GlobalView {
 		
 		Button generate = new Button(Messages.get("RANDOM_GENERATE"));
 		Spinner<Integer> passwordSize = new Spinner<>(1, 128, 16);
-		TextField specialValues = new TextField("#$%?!/*=");
+		TextField specialValues = new TextField(Prefs.myPrefs.get(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS));
 		final CheckBox num, alpha, upper, special;
 		
 		gp.add(new Label(Messages.get("RANDOM_SIZE")), 0, 0);
@@ -558,6 +559,7 @@ public class GlobalView {
 					case 3:
 						if (special.isSelected()) {
 							newPass += spe.charAt(ThreadLocalRandom.current().nextInt(0, spe.length()));
+							i++;
 						}
 						break;
 				}
@@ -975,8 +977,8 @@ public class GlobalView {
 				Project p = new Project("SmartSafe", dir.getText());
 				p.parsePckgs();
 				pb.setProgress(0.3);
-				p.getPackages().get(0).setAid(SmartSafeAppli.PACK_AID);
-				p.getPackages().get(0).setAppletsAID(Collections.singletonList(SmartSafeAppli.APP_AID));
+				p.getPackages().get(0).setAid(new StringHex("SmartSafe2".getBytes()));
+				p.getPackages().get(0).setAppletsAID(Collections.singletonList(new StringHex("SmartSafeApp2".getBytes())));
 				pb.setProgress(0.5);
 				try {
 					p.build();
@@ -1013,8 +1015,8 @@ public class GlobalView {
 					scp.initUpdate((byte) 0, (byte) 0);
 					scp.externalAuth(SCP.SEC_LEVEL_C_MAC);
 					
-					String packAid = SmartSafeAppli.PACK_AID.toString();
-					String appAid = SmartSafeAppli.APP_AID.toString();
+					String packAid = new StringHex("SmartSafe2".getBytes()).toString();
+					String appAid = new StringHex("SmartSafeApp2".getBytes()).toString();
 					if (deleteOld.isSelected()) {
 						gpc.delete(appAid, true);
 						gpc.delete(packAid, true);
@@ -1033,6 +1035,76 @@ public class GlobalView {
 		
 		dialog.getDialogPane().setContent(main);
 		dialog.showAndWait();
+	}
+	
+	public static void preferencesDialog() {
+		//AID
+		//language
+		//characters
+
+		Dialog<String> dialog = new Dialog<>();
+		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+		stage.getIcons().add(Images.PREFERENCES);
+		dialog.setTitle(Messages.get("PREFS_DIALOG"));
+		dialog.setHeaderText(null);
+		
+		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
+		ButtonType reset = new ButtonType("Reset to default", ButtonData.APPLY);
+		dialog.getDialogPane().getButtonTypes().addAll(reset, ok, ButtonType.CANCEL);
+		
+		
+		ComboBox<String> language = new ComboBox<>();
+		language.setMaxWidth(Double.MAX_VALUE);
+		language.getItems().addAll(Prefs.LANGUAGES_LIST);
+		language.getSelectionModel().select(Prefs.myPrefs.get(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE));
+		
+		TextField chars = new TextField(Prefs.myPrefs.get(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS));
+		chars.setPrefWidth(250);
+		
+		TextField pckgAid = new TextField(Prefs.myPrefs.get(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID));
+		pckgAid.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue.length() > 10)
+				pckgAid.setText(newValue.substring(0, 10));
+		});
+		
+		TextField appAidSuffix = new TextField(Prefs.myPrefs.get(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX));
+		appAidSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue.length() > 6)
+				appAidSuffix.setText(newValue.substring(0, 10));
+		});
+		
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(2);
+		gp.setVgap(2);
+		gp.add(new Label(Messages.get("PREFS_LANGUAGE")), 0, 0);
+		gp.add(language, 1, 0);
+		gp.add(new Label(Messages.get("PREFS_CHARS")), 0, 1);
+		gp.add(chars, 1, 1);
+		gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 2);
+		gp.add(pckgAid, 1, 2);
+		gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 3);
+		gp.add(appAidSuffix, 1, 3);
+
+		dialog.getDialogPane().setContent(gp);
+		
+		dialog.setResultConverter(dialogButton -> {
+			if (dialogButton == ok) {
+				Prefs.myPrefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
+				Prefs.myPrefs.put(Prefs.KEY_CHARS, chars.getText());
+				Prefs.myPrefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
+				Prefs.myPrefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
+			}
+			else if (dialogButton == reset) {
+				Prefs.myPrefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
+				Prefs.myPrefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
+				Prefs.myPrefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
+				Prefs.myPrefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
+			}
+			return null;
+		});
+		dialog.showAndWait();
+	
 	}
 	
 	public static void aboutDialog() {
