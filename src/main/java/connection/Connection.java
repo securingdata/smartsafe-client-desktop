@@ -73,8 +73,8 @@ public class Connection {
 					logger.info("ATR: " + new StringHex(atr.getBytes()) + "\n");
 				}
 				if (logListener != null) {
-					logListener.set(logListener.get() + "Connected to " + ct.getName() + "\n");
-					logListener.set(logListener.get() + "ATR: " + new StringHex(atr.getBytes()) + "\n\n");
+					logListener.set("Connected to " + ct.getName() + "\n");
+					logListener.set("ATR: " + new StringHex(atr.getBytes()) + "\n\n");
 				}
 				return atr;
 			}
@@ -83,7 +83,7 @@ public class Connection {
 				logger.info("Issue with reader " + ct.getName() + ": " + e.getMessage());
 			}
 			if (logListener != null) {
-				logListener.set(logListener.get() + "Issue with reader " + ct.getName() + ": " + e.getMessage() + "\n");
+				logListener.set("Issue with reader " + ct.getName() + ": " + e.getMessage() + "\n");
 			}
 		}
 		return null;
@@ -97,14 +97,14 @@ public class Connection {
 				if (logger.isInfoEnabled())
 					logger.info("Trying with reader:" + ct.getName() + "\n");
 				if (logListener != null)
-					logListener.set(logListener.get() + "Trying with reader:" + ct.getName() + "\n\n");
+					logListener.set("Trying with reader:" + ct.getName() + "\n\n");
 
 			}
 		} catch (CardException e) {
 			if (logger.isInfoEnabled())
 				logger.info("No reader found.");
 			if (logListener != null)
-				logListener.set(logListener.get() + "No reader found.\n");
+				logListener.set("No reader found.\n");
 		}
 		return null;
 	}
@@ -123,8 +123,8 @@ public class Connection {
 			logger.info("ATR: " + new StringHex(atr.getBytes()) + "\n");
 		}
 		if (logListener != null) {
-			logListener.set(logListener.get() + "Cold Reset\n");
-			logListener.set(logListener.get() + "ATR: " + new StringHex(atr.getBytes()) + "\n\n");
+			logListener.set("Cold Reset\n");
+			logListener.set("ATR: " + new StringHex(atr.getBytes()) + "\n\n");
 		}
 		return atr;
 	}
@@ -136,7 +136,7 @@ public class Connection {
 				if (logger.isInfoEnabled())
 					logger.info(tmp);
 				if (logListener != null)
-					logListener.set(logListener.get() + tmp + "\n");
+					logListener.set(tmp + "\n");
 				i = i - 16 + 5;
 			}
 			else {
@@ -144,7 +144,7 @@ public class Connection {
 				if (logger.isInfoEnabled())
 					logger.info(tmp);
 				if (logListener != null)
-					logListener.set(logListener.get() + tmp + "\n");
+					logListener.set(tmp + "\n");
 			}
 		}
 	}
@@ -155,7 +155,7 @@ public class Connection {
 		if (logger.isInfoEnabled())
 			logger.info("");
 		if (logListener != null)
-			logListener.set(logListener.get() + "\n");
+			logListener.set("\n");
 		return response;
 	}
 	public APDUResponse send(StringHex header, StringHex data, StringHex le) throws CardException {

@@ -108,7 +108,7 @@ public class Controls {
 	
 	public static final String INIT = Messages.get("INIT");
 	public static final Action ACTION_INIT = new Action(INIT, false, null, params -> {
-		
+		GlobalView.firstInitDialog();
 	});
 	
 	public static final String UPDATE = Messages.get("UPDATE");

@@ -49,7 +49,7 @@ public class SmartSafeAppli extends Application {
 	}
 	
 	public boolean backupData(String file, String password) {
-		String tmp = "";
+		String tmp = "SmartSafe\n";
 		for (String group : getGroups()) {
 			tmp += group + "\n";
 			for (Entry entry : getEntries(group, false)) {
@@ -78,7 +78,7 @@ public class SmartSafeAppli extends Application {
 			Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
 			byte[] keyValue = Crypto.keyFromPassword(password).get(0, 16).toBytes();
 			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyValue, "AES"), new IvParameterSpec(IV));
-			tmp = new StringHex(cipher.doFinal(tmp.getBytes())).toString();
+			tmp = new StringHex("536d61727453616665").toString() + new StringHex(cipher.doFinal(tmp.getBytes())).toString();
 		} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e1) {
 			return false;
 		}
@@ -184,7 +184,7 @@ public class SmartSafeAppli extends Application {
 		return send("Available", "80030000", "", "");
 	}
 	public String getVersion() {
-		return new String(send("Get Version", "80040000", "", "").getData());
+		return new String(send("Get Version", "00040000", "", "").getData());
 	}
 	
 	public APDUResponse createGroup(byte nbEntries, String identifier) {

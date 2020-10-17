@@ -29,7 +29,6 @@ public class SCP03 extends SCP {
 	
 	public String getCipherName() {
 		return "AES/CBC/NoPadding";
-		//return "AES/ECB/NoPadding";
 	}
 	public Key instanciateKey(byte[] keyValue) {
 		return new SecretKeySpec(keyValue, "AES");

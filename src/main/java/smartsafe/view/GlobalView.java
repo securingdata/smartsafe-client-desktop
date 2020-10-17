@@ -13,6 +13,7 @@ import javax.smartcardio.CardTerminal;
 import compiler.Compiler;
 import compiler.CompilerException;
 import compiler.project.Project;
+import connection.APDUResponse;
 import connection.Connection;
 import connection.loader.GPCommands;
 import connection.loader.GPException;
@@ -23,9 +24,12 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
+import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
+import javafx.scene.text.Font;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -77,6 +81,7 @@ import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
+import util.Crypto;
 import util.StringHex;
 
 public class GlobalView {
@@ -267,6 +272,18 @@ public class GlobalView {
 		return ok;
 	}
 	
+	private static ComboBox<CardTerminal> getTerminals() {
+		List<CardTerminal> terminals = Connection.getTerminals();
+		if (terminals == null || terminals.isEmpty()) {
+			errorDialog(Messages.get("CONNECT_NO_READER"));
+			return null;
+		}
+		ComboBox<CardTerminal> readerList = new ComboBox<>();
+		readerList.getItems().addAll(terminals);
+		readerList.getSelectionModel().select(0);
+		return readerList;
+	}
+	
 	public static void connectDialog() {
 		Dialog<String> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.CONNECT, Messages.get("CONNECT_DIALOG"));
@@ -275,14 +292,9 @@ public class GlobalView {
 		gp.setHgap(2);
 		gp.setVgap(2);
 
-		List<CardTerminal> terminals = Connection.getTerminals();
-		if (terminals == null || terminals.isEmpty()) {
-			errorDialog(Messages.get("CONNECT_NO_READER"));
+		ComboBox<CardTerminal> readerList = getTerminals();
+		if (readerList == null)
 			return;
-		}
-		ComboBox<CardTerminal> readerList = new ComboBox<>();
-		readerList.getItems().addAll(terminals);
-		readerList.getSelectionModel().select(0);
 		PasswordField password = new PasswordField();
 		
 		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
@@ -735,7 +747,7 @@ public class GlobalView {
 		
 		dialog.showAndWait();
 	}
-	private static void keyValidator(IntegerProperty loadValidation, StackPane keySp, ComboBox<String> keyComboBox, String newValue, int keyPosition) {
+	private static void keyValidator(IntegerProperty validator, StackPane keySp, ComboBox<String> keyComboBox, String newValue, int keyPosition) {
 		ImageView iv = (ImageView) keySp.getChildren().get(1);
 		boolean tmp;
 		if (keyComboBox.getSelectionModel().getSelectedIndex() == 0) {
@@ -746,21 +758,143 @@ public class GlobalView {
 			tmp = newValue.isEmpty();
 		iv.setVisible(tmp);
 		if (tmp)
-			loadValidation.set(loadValidation.get() | keyPosition);
+			validator.set(validator.get() | keyPosition);
 		else
-			loadValidation.set(loadValidation.get() & ~keyPosition);
+			validator.set(validator.get() & ~keyPosition);
 	}
-	private static void bckpFileValidator(IntegerProperty loadValidation, StackPane bckpSp, String newValue, boolean active) {
+	private static void bckpFileValidator(IntegerProperty validator, StackPane bckpSp, String newValue, boolean active) {
 		ImageView iv = (ImageView) bckpSp.getChildren().get(1);
 		boolean tmp = active && (newValue.isEmpty() || !new File(newValue).exists());
 		iv.setVisible(tmp);
 		if (tmp)
-			loadValidation.set(loadValidation.get() | 0x8);
+			validator.set(validator.get() | 0x8);
 		else
-			loadValidation.set(loadValidation.get() & ~0x8);
+			validator.set(validator.get() & ~0x8);
 	}
 	public static void firstInitDialog() {
+		Dialog<String> dialog = new Dialog<>();
+		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+		stage.getIcons().add(Images.INIT);
+		dialog.setTitle(Messages.get("INIT_DIALOG"));
+		dialog.setHeaderText(null);
 		
+		IntegerProperty validator = new SimpleIntegerProperty(0x4);
+		
+		ButtonType close = new ButtonType(Messages.get("INIT_CLOSE"), ButtonData.CANCEL_CLOSE);
+		ButtonType personnalize = new ButtonType(Messages.get("INIT_PERSO"), ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(close, personnalize);
+		
+		GridPane gp = new GridPane();
+		gp.setHgap(2);
+		gp.setVgap(2);
+		
+		ComboBox<CardTerminal> readerList = getTerminals();
+		if (readerList == null)
+			return;
+		
+		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
+		gp.add(readerList, 1, 0);
+		
+		TextField bckpFile = new TextField();
+		StackPane bckpSp = new StackPane(bckpFile, createWarning());
+		bckpSp.getChildren().get(1).setVisible(false);
+		bckpFile.textProperty().addListener((observable, oldValue, newValue) -> {
+			bckpFileValidator(validator, bckpSp, newValue, true);
+		});
+		Button browseBckp = new Button(Messages.get("INIT_BROWSE"));
+		browseBckp.setOnAction(event -> {
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle(Messages.get("INIT_CHOOSE_BCKP"));
+			File tmp = fileChooser.showOpenDialog((Stage) dialog.getDialogPane().getScene().getWindow());
+			if (tmp != null) {
+				bckpFile.setText(tmp.getAbsolutePath());
+			}
+		});
+		Label bckpLabel = new Label(Messages.get("INIT_BCKP_LABEL"));
+		PasswordField bckpPass = new PasswordField();
+		TextField bckpText = new TextField();
+		bindTextAndPassField(bckpText, bckpPass);
+		ToggleButton bckpShow = new ToggleButton(Messages.get("INIT_SHOW"));
+		bckpShow.setOnAction(event -> {
+			gp.getChildren().remove(bckpShow.isSelected() ? bckpPass : bckpText);
+			gp.add(bckpShow.isSelected() ? bckpText : bckpPass, 1, 2);
+		});
+		bckpShow.setMaxWidth(Double.MAX_VALUE);
+		CheckBox bckpCheck = new CheckBox(Messages.get("INIT_BCKP"));
+		bckpCheck.selectedProperty().addListener((observable, oldValue, newValue) -> {
+			bckpFileValidator(validator, bckpSp, bckpFile.getText(), newValue.booleanValue());
+		});
+		addDisableListener(bckpSp, bckpCheck.selectedProperty());
+		addDisableListener(browseBckp, bckpCheck.selectedProperty());
+		addDisableListener(bckpLabel, bckpCheck.selectedProperty());
+		addDisableListener(bckpPass, bckpCheck.selectedProperty());
+		addDisableListener(bckpShow, bckpCheck.selectedProperty());
+		gp.add(bckpCheck, 0, 1);
+		gp.add(bckpSp, 1, 1);
+		gp.add(browseBckp, 2, 1);
+		gp.add(bckpLabel, 0, 2);
+		gp.add(bckpPass, 1, 2);
+		gp.add(bckpShow, 2, 2);
+		
+		PasswordField userPass = new PasswordField();
+		TextField userText = new TextField();
+		userPass.textProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue.isEmpty())
+				validator.set(validator.get() | 0x4);
+			else
+				validator.set(validator.get() & ~0x4);
+		});
+		bindTextAndPassField(userText, userPass);
+		ToggleButton userShow = new ToggleButton(Messages.get("INIT_SHOW"));
+		userShow.setMaxWidth(Double.MAX_VALUE);
+		userShow.setOnAction(event -> {
+			gp.getChildren().remove(userShow.isSelected() ? userPass : userText);
+			gp.add(userShow.isSelected() ? userText : userPass, 1, 3);
+		});
+		gp.add(new Label(Messages.get("INIT_PASS")), 0, 3);
+		gp.add(userPass, 1, 3);
+		gp.add(userShow, 2, 3);
+		
+		ProgressBarWithText pb = new ProgressBarWithText();
+		
+		VBox main = new VBox(4, gp, pb);
+		
+		Button personnalizeB = (Button) dialog.getDialogPane().lookupButton(personnalize);
+		personnalizeB.setDisable(true);
+		validator.addListener((observable, oldValue, newValue) -> personnalizeB.setDisable(newValue.intValue() != 0));
+		
+		personnalizeB.addEventFilter(ActionEvent.ACTION, event -> {
+			event.consume();
+			new Thread((Runnable) () -> {
+				pb.reset();
+				SmartSafeAppli appli = new SmartSafeAppli(readerList.getSelectionModel().getSelectedItem());
+				try {
+					appli.coldReset();
+					APDUResponse resp = appli.select();
+					if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+						pb.setProgress(1, Messages.get("INIT_PB_1"));
+						pb.setTextStyle(true);
+					}
+					else {
+						if (new StringHex(resp.getData()).toString().equals("DE CA")) {
+							appli.changePin(userText.getText());
+							pb.setProgress(1, Messages.get("INIT_PB_2"));
+						}
+						else {
+							pb.setProgress(1, Messages.get("INIT_PB_3"));
+							pb.setTextStyle(true);
+						}
+					}
+				} catch (GPException e) {
+					pb.setProgress(1, Messages.get("INIT_PB_4"));
+				}
+				
+				appli.disconnect();
+			}).start();
+		});
+		
+		dialog.getDialogPane().setContent(main);
+		dialog.showAndWait();
 	}
 	public static void manageServerDialog() {
 		Dialog<String> dialog = new Dialog<>();
@@ -769,23 +903,19 @@ public class GlobalView {
 		dialog.setTitle(Messages.get("MANAGE_DIALOG"));
 		dialog.setHeaderText(null);
 		
-		IntegerProperty loadValidation = new SimpleIntegerProperty(0x1 | 0x2);
+		IntegerProperty validator = new SimpleIntegerProperty(0x1);
 		
-		ButtonType close = new ButtonType(Messages.get("MANAGE_CLOSE"), ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(close);
+		ButtonType close = new ButtonType(Messages.get("MANAGE_CLOSE"), ButtonData.CANCEL_CLOSE);
+		ButtonType manage = new ButtonType(Messages.get("MANAGE_LOAD"), ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(close, manage);
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
 		gp.setVgap(2);
 		
-		List<CardTerminal> terminals = Connection.getTerminals();
-		if (terminals == null || terminals.isEmpty()) {
-			errorDialog(Messages.get("CONNECT_NO_READER"));
+		ComboBox<CardTerminal> readerList = getTerminals();
+		if (readerList == null)
 			return;
-		}
-		ComboBox<CardTerminal> readerList = new ComboBox<>();
-		readerList.getItems().addAll(terminals);
-		readerList.getSelectionModel().select(0);
 		
 		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
 		gp.add(readerList, 1, 0);
@@ -810,9 +940,9 @@ public class GlobalView {
 			iv.setVisible(tmp);
 			compile.setDisable(tmp);
 			if (tmp)
-				loadValidation.set(loadValidation.get() | 0x1);
+				validator.set(validator.get() | 0x1);
 			else
-				loadValidation.set(loadValidation.get() & ~0x1);
+				validator.set(validator.get() & ~0x1);
 		});
 		gp.add(new Label(Messages.get("MANAGE_PROJECT_PATH")), 0, 1);
 		gp.add(spDir, 1, 1);
@@ -836,7 +966,9 @@ public class GlobalView {
 		PasswordField key1Pass = new PasswordField();
 		TextField key1Text = new TextField();
 		StackPane key1Sp = new StackPane(key1Pass, createWarning());
+		key1Sp.getChildren().get(1).setVisible(false);
 		bindTextAndPassField(key1Text, key1Pass);
+		key1Text.setText("40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f");
 		ToggleButton key1Show = new ToggleButton(Messages.get("MANAGE_SHOW"));
 		key1Show.setMaxWidth(Double.MAX_VALUE);
 		key1Show.setOnAction(event -> key1Sp.getChildren().set(0, key1Show.isSelected() ? key1Text : key1Pass));
@@ -846,10 +978,10 @@ public class GlobalView {
 		key1ComboBox.getSelectionModel().select(0);
 		
 		key1ComboBox.getSelectionModel().selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(loadValidation, key1Sp, key1ComboBox, key1Pass.getText(), 0x2);
+			keyValidator(validator, key1Sp, key1ComboBox, key1Pass.getText(), 0x2);
 		});
 		key1Pass.textProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(loadValidation, key1Sp, key1ComboBox, newValue, 0x2);
+			keyValidator(validator, key1Sp, key1ComboBox, newValue, 0x2);
 		});
 		gp.add(new Label(Messages.get("MANAGE_KEY_1")), 0, 3);
 		gp.add(key1Sp, 1, 3);
@@ -869,18 +1001,18 @@ public class GlobalView {
 		key2ComboBox.getItems().addAll(Messages.get("MANAGE_PLAIN"), Messages.get("MANAGE_DERIVE"));
 		key2ComboBox.getSelectionModel().select(0);
 		key2ComboBox.getSelectionModel().selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(loadValidation, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
+			keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
 		});
 		key2Pass.textProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(loadValidation, key2Sp, key2ComboBox, newValue, 0x4);
+			keyValidator(validator, key2Sp, key2ComboBox, newValue, 0x4);
 		});
 		CheckBox key2Check = new CheckBox(Messages.get("MANAGE_KEY_2"));
 		key2Check.selectedProperty().addListener((observable, oldValue, newValue) -> {
 			key2Sp.getChildren().get(1).setVisible(newValue.booleanValue());
 			if (newValue)
-				keyValidator(loadValidation, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
+				keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
 			else
-				loadValidation.set(loadValidation.get() & ~0x4);
+				validator.set(validator.get() & ~0x4);
 		});
 		addDisableListener(key2Sp, key2Check.selectedProperty());
 		addDisableListener(key2Show, key2Check.selectedProperty());
@@ -890,148 +1022,144 @@ public class GlobalView {
 		gp.add(key2Show, 2, 4);
 		gp.add(key2ComboBox, 3, 4);
 		
-		TextField bckpFile = new TextField();
-		StackPane bckpSp = new StackPane(bckpFile, createWarning());
-		bckpSp.getChildren().get(1).setVisible(false);
-		bckpFile.textProperty().addListener((observable, oldValue, newValue) -> {
-			bckpFileValidator(loadValidation, bckpSp, newValue, true);
-		});
-		Button browseBckp = new Button(Messages.get("MANAGE_BROWSE"));
-		browseBckp.setOnAction(event -> {
-			FileChooser fileChooser = new FileChooser();
-			fileChooser.setTitle(Messages.get("MANAGE_CHOOSE_BCKP"));
-			File tmp = fileChooser.showOpenDialog((Stage) dialog.getDialogPane().getScene().getWindow());
-			if (tmp != null) {
-				bckpFile.setText(tmp.getAbsolutePath());
-			}
-		});
-		Label bckpLabel = new Label(Messages.get("MANAGE_BCKP_LABEL"));
-		PasswordField bckpPass = new PasswordField();
-		TextField bckpText = new TextField();
-		bindTextAndPassField(bckpText, bckpPass);
-		ToggleButton bckpShow = new ToggleButton(Messages.get("MANAGE_SHOW"));
-		bckpShow.setOnAction(event -> {
-			gp.getChildren().remove(bckpShow.isSelected() ? bckpPass : bckpText);
-			gp.add(bckpShow.isSelected() ? bckpText : bckpPass, 1, 6);
-		});
-		bckpShow.setMaxWidth(Double.MAX_VALUE);
-		CheckBox bckpCheck = new CheckBox(Messages.get("MANAGE_BCKP"));
-		bckpCheck.selectedProperty().addListener((observable, oldValue, newValue) -> {
-			bckpFileValidator(loadValidation, bckpSp, bckpFile.getText(), newValue.booleanValue());
-		});
-		addDisableListener(bckpSp, bckpCheck.selectedProperty());
-		addDisableListener(browseBckp, bckpCheck.selectedProperty());
-		addDisableListener(bckpLabel, bckpCheck.selectedProperty());
-		addDisableListener(bckpPass, bckpCheck.selectedProperty());
-		addDisableListener(bckpShow, bckpCheck.selectedProperty());
-		gp.add(bckpCheck, 0, 5);
-		gp.add(bckpSp, 1, 5);
-		gp.add(browseBckp, 2, 5);
-		gp.add(bckpLabel, 0, 6);
-		gp.add(bckpPass, 1, 6);
-		gp.add(bckpShow, 2, 6);
+		Button manageB = (Button) dialog.getDialogPane().lookupButton(manage);
+		manageB.setDisable(true);
+		validator.addListener((observable, oldValue, newValue) -> manageB.setDisable(newValue.intValue() != 0));
 		
-		PasswordField key3Pass = new PasswordField();
-		TextField key3Text = new TextField();
-		bindTextAndPassField(key3Text, key3Pass);
-		ToggleButton key3Show = new ToggleButton(Messages.get("MANAGE_SHOW"));
-		key3Show.setMaxWidth(Double.MAX_VALUE);
-		key3Show.setOnAction(event -> {
-			gp.getChildren().remove(key3Show.isSelected() ? key3Pass : key3Text);
-			gp.add(key1Show.isSelected() ? key3Text : key3Pass, 1, 7);
+		Label label = new Label();
+		readerList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+			SmartSafeAppli appli = new SmartSafeAppli(newValue);
+			try {
+				appli.coldReset();
+				APDUResponse resp = appli.select();
+				if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+					label.setText(Messages.get("MANAGE_ABS"));
+					label.setTextFill(Color.DARKGREEN);
+				}
+				else {
+					String tmp = Messages.get("MANAGE_PRES") + " " +appli.getVersion() + ") ";
+					if (new StringHex(resp.getData()).toString().equals("DE CA")) {
+						label.setText(tmp + Messages.get("MANAGE_NOT_PERSO"));
+						label.setTextFill(Color.DARKORANGE);
+					}
+					else {
+						label.setText(tmp + Messages.get("MANAGE_PERSO"));
+						label.setTextFill(Color.DARKRED);
+					}
+				}
+				appli.disconnect();
+			} catch (GPException e) {}
 		});
-		Button load = new Button(Messages.get("MANAGE_LOAD"));
-		load.setMaxWidth(Double.MAX_VALUE);
-		load.setDisable(true);
-		loadValidation.addListener((observable, oldValue, newValue) -> load.setDisable(newValue.intValue() != 0));
-		gp.add(new Label(Messages.get("MANAGE_KEY_3")), 0, 7);
-		gp.add(key3Pass, 1, 7);
-		gp.add(key3Show, 2, 7);
-		gp.add(load, 3, 7);
+		readerList.getSelectionModel().clearSelection();
+		readerList.getSelectionModel().select(0);
 		
-		CheckBox deleteOld = new CheckBox(Messages.get("MANAGE_DELETE"));
-		gp.add(deleteOld, 0, 8);
-		
-		ProgressBar pb = new ProgressBar(0);
-		pb.setMaxWidth(Double.MAX_VALUE);
+		ProgressBarWithText pb = new ProgressBarWithText();
 		
 		StringProperty sp = new SimpleStringProperty("");
 		Compiler.setLogListener(sp);
 		Connection.setLogListener(sp);
-		SCP.setLogListener(sp);
-		/*TextArea consoleContent = new TextArea();
+		TextArea consoleContent = new TextArea("");
 		consoleContent.setEditable(false);
 		consoleContent.setFont(Font.font("Courier New", 13));
-		TitledPane console = new TitledPane(Messages.get("MANAGE_CONSOLE"), consoleContent);
-		console.setGraphic(new ImageView(Images.DETAILS));
-		console.setCollapsible(false);
+		sp.addListener((observable, oldValue, newValue) -> consoleContent.appendText(newValue));
 		
-		Button clear = new Button("Clear console");
-		clear.setOnAction(event -> sp.set(""));
-		BorderPane clearPane = new BorderPane();
-		clearPane.setRight(clear);*/
+		VBox main = new VBox(4, gp, label, pb);
+		
+		Button showConsole = new Button(Messages.get("MANAGE_SHOW_CONSOLE"));
+		showConsole.setOnAction(event -> {
+			main.getChildren().set(3, consoleContent);
+			dialog.getDialogPane().getScene().getWindow().sizeToScene();
+		});
+		BorderPane showConsolePane = new BorderPane();
+		showConsolePane.setRight(showConsole);
+		main.getChildren().add(showConsolePane);
 		
 		compile.setOnAction(event -> {
 			new Thread((Runnable) () -> {
-				pb.setProgress(0);
+				pb.reset();
+				pb.setText(Messages.get("MANAGE_COMPILE_1"));
 				Project p = new Project("SmartSafe", dir.getText());
 				p.parsePckgs();
 				pb.setProgress(0.3);
-				p.getPackages().get(0).setAid(new StringHex("SmartSafe2".getBytes()));
-				p.getPackages().get(0).setAppletsAID(Collections.singletonList(new StringHex("SmartSafeApp2".getBytes())));
-				pb.setProgress(0.5);
+				p.getPackages().get(0).setAid(Prefs.getPckgAID());
+				p.getPackages().get(0).setAppletsAID(Collections.singletonList(Prefs.getAppAID()));
+				pb.setProgress(0.5, Messages.get("MANAGE_COMPILE_2"));
 				try {
 					p.build();
+					pb.setProgress(1, Messages.get("MANAGE_COMPILE_3"));
 				} catch (CompilerException e) {
-					errorDialog(e.getMessage());
+					pb.setProgress(1, Messages.get("MANAGE_COMPILE_4"));
+					pb.setTextStyle(true);
 				}
-				pb.setProgress(1);
 			}).start();
 		});
 		
-		load.setOnAction(event -> {
+		manageB.addEventFilter(ActionEvent.ACTION, event -> {
+			event.consume();
 			new Thread((Runnable) () -> {
-				/*SmartSafeAppli ssa = new SmartSafeAppli(null);
-		    	ssa.restoreData(bckpFile.getText(), bckpPass.getText());*/
-		    	pb.setProgress(0);
-		    	SCP scp = new SCP03();
+				pb.reset();
+		    	SCP scp;
+				switch (scpVersion.getSelectionModel().getSelectedItem()) {
+					case "SCP03":
+						scp = new SCP03();
+						break;
+					default:
+						//Should never happen
+						return;
+				}
+				
+				switch (keyDerivation.getSelectionModel().getSelectedItem()) {
+					case "EMVCPS v1.1":
+						scp.setStaticDerivation(SCP.StaticDerivation.EMVCPS1_1);
+						break;
+					case "VISA":
+						scp.setStaticDerivation(SCP.StaticDerivation.VISA);
+						break;
+					case "VISA2":
+						scp.setStaticDerivation(SCP.StaticDerivation.VISA2);
+						break;
+					case "No derivation":
+					default:
+						scp.setStaticDerivation(SCP.StaticDerivation.NO_DERIVATION);
+				}
 				GPCommands gpc = new GPCommands(scp);
-				scp.setStaticDerivation(SCP.StaticDerivation.EMVCPS1_1);
-				//StringHex kmac, kenc, kdek;
+				StringHex keys;
 				if (key1ComboBox.getSelectionModel().getSelectedIndex() == 0) {
-					//kmac = new StringHex(key1Pass.getText());
-					
+					keys = new StringHex(key1Pass.getText());
+					if (keys.size() == 16)
+						keys = new StringHex(keys.toString() + keys.toString() + keys.toString());
 				}
 				else {
-					
+					keys = Crypto.keyFromPassword(key1Pass.getText());
 				}
-				scp.addKey((short) 0, scp.instanciateKey(new StringHex("40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f").toBytes()));
-				scp.addKey((short) 1, scp.instanciateKey(new StringHex("40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f").toBytes()));
-				scp.addKey((short) 2, scp.instanciateKey(new StringHex("40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f").toBytes()));
-				
+				scp.addKey((short) 0, scp.instanciateKey(keys.get(0, 16).toBytes()));
+				scp.addKey((short) 1, scp.instanciateKey(keys.get(16, 16).toBytes()));
+				scp.addKey((short) 2, scp.instanciateKey(keys.get(32, 16).toBytes()));
+				pb.setProgress(0.1);
 				try {
 					scp.coldReset();
 					scp.select("");
+					pb.setProgress(2, Messages.get("MANAGE_LOAD_1"));
 					scp.initUpdate((byte) 0, (byte) 0);
-					scp.externalAuth(SCP.SEC_LEVEL_C_MAC);
-					
-					String packAid = new StringHex("SmartSafe2".getBytes()).toString();
-					String appAid = new StringHex("SmartSafeApp2".getBytes()).toString();
-					if (deleteOld.isSelected()) {
-						gpc.delete(appAid, true);
-						gpc.delete(packAid, true);
-					}
+					scp.externalAuth((byte) authMode.getSelectionModel().getSelectedIndex());
+					pb.setProgress(0.3, Messages.get("MANAGE_LOAD_2"));
+					String packAid = Prefs.getPckgAID().toString();
+					String appAid = Prefs.getAppAID().toString();
+					gpc.delete(appAid, true);
+					gpc.delete(packAid, true);
+					pb.setProgress(0.4, Messages.get("MANAGE_LOAD_3"));
 					gpc.installForLoad(packAid, "");
+					pb.setProgress(0.5);
 					gpc.loadCAP(GPCommands.getRawCap(dir.getText() + "/build/smartsafe/server/javacard/server.cap").toBytes());
+					pb.setProgress(0.9, Messages.get("MANAGE_LOAD_4"));
 					gpc.installForInstallAndMakeSelectable(packAid, appAid, appAid, "", "");
+					pb.setProgress(1, Messages.get("MANAGE_LOAD_5"));
 				} catch (GPException e) {
-					errorDialog(e.getMessage());
+					pb.setProgress(1, Messages.get("MANAGE_LOAD_6"));
+					pb.setTextStyle(true);
 				}
-		    	pb.setProgress(1);
 			}).start();
 		});
-		
-		VBox main = new VBox(4, gp, pb/*, console, clearPane*/);
 		
 		dialog.getDialogPane().setContent(main);
 		dialog.showAndWait();

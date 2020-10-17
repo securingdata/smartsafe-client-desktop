@@ -121,7 +121,7 @@ public class Compiler {
     		if (LOGGER.isInfoEnabled())
     			LOGGER.info(d);
     		if (logListener != null)
-    			logListener.set(logListener.get() + d);
+    			logListener.set("" + d);
     	}
 	    return result;
 	}
@@ -169,7 +169,7 @@ public class Compiler {
 		if (LOGGER.isInfoEnabled())
 			LOGGER.info(errPrivate.substring(0, endOffset));
 		if (logListener != null)
-			logListener.set(logListener.get() + errPrivate.substring(0, endOffset));
+			logListener.set(errPrivate.substring(0, endOffset));
 		
 		return errPrivate.indexOf("INFOS: conversion completed with 0 errors") != -1;
 	}
