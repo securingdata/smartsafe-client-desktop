@@ -9,15 +9,12 @@ import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.log4j.Logger;
-
 import connection.APDUResponse;
 import connection.Application;
 import util.Bits;
 import util.StringHex;
 
 public abstract class SCP extends Application implements Bits {
-	private static final Logger logger = Logger.getLogger(SCP.class);
 	
 	public enum StaticDerivation {
 		NO_DERIVATION, EMVCPS1_1, VISA, VISA2;
@@ -121,7 +118,7 @@ public abstract class SCP extends Application implements Bits {
 		currentKeys = (short) (((kvn << 8) & 0xFF00) | (kid & 0xFF));
 	}
 	protected Key getKey(short kvnAndKid) {
-		return keySet.get(new Short(kvnAndKid));
+		return keySet.get(Short.valueOf(kvnAndKid));
 	}
 	public abstract Key instanciateKey(byte[] keyValue);
 	protected Key convertInTDES(StringHex des2) {
@@ -146,12 +143,6 @@ public abstract class SCP extends Application implements Bits {
 		}
 	}
 	public void deriveStaticKeys() throws GPException {
-		if (logger.isInfoEnabled()) {
-			logger.info("Static master keys:");
-			logger.info("Kenc -> " + new StringHex(getKey(currentKeys).getEncoded()));
-			logger.info("Kmac -> " + new StringHex(getKey((short) (currentKeys + 1)).getEncoded()));
-			logger.info("Kdek -> " + new StringHex(getKey((short) (currentKeys + 2)).getEncoded()));
-		}
 		StringHex kdd = null;
 		Cipher cipher = getCipher();
 		
@@ -161,9 +152,6 @@ public abstract class SCP extends Application implements Bits {
 					setSessionKey(SENC_NAME, getKey(currentKeys).getEncoded());
 					setSessionKey(SMAC_NAME, getKey((short) (currentKeys + 1)).getEncoded());
 					setSessionKey(KDEK_NAME, getKey((short) (currentKeys + 2)).getEncoded());
-					if (logger.isInfoEnabled()) {
-						logger.info("No static diversification performed.");
-					}
 					return;
 				case EMVCPS1_1://EMVCPS
 					kdd = StringHex.concatenate(keyDivData.get(4, 6), new StringHex("F0 01"), 
@@ -188,12 +176,6 @@ public abstract class SCP extends Application implements Bits {
 				case VISA2:
 					break;
 			}
-			if (logger.isInfoEnabled()) {
-				logger.info("Diversified master keys:");
-				logger.info("Kenc -> " + new StringHex(sEnc.getEncoded()));
-				logger.info("Kmac -> " + new StringHex(sMac.getEncoded()));
-				logger.info("Kdek -> " + new StringHex(kDek.getEncoded()));
-			}
 		} catch (GeneralSecurityException e) {
 			throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
 		}
@@ -214,29 +196,14 @@ public abstract class SCP extends Application implements Bits {
 			keyInfo = response.get(KEY_DIV_DATA_LEN, KEY_INFO_LEN);
 			cardChallenge = response.get(KEY_DIV_DATA_LEN + KEY_INFO_LEN, CHALLENGE_LEN);
 			cardCrypto = response.get(KEY_DIV_DATA_LEN + KEY_INFO_LEN + CHALLENGE_LEN, CRYPTOGRAM_LEN);
-			if (logger.isInfoEnabled()) {
-				logger.info("Parsing Init Update response...");
-				logger.info("Key diversification data: " + keyDivData.toString());
-				logger.info("Key info: " + keyInfo.toString());
-				logger.info("Card challenge: " + cardChallenge.toString());
-				logger.info("Card cryptogram: " + cardCrypto.toString());
-				logger.info("Parsing Done.");
-			}
 		}
 		else {
-			if (logger.isInfoEnabled()) {
-				logger.info("Initialize Update command failed!");
-			}
 			throw new GPException(Integer.toHexString(response.getStatusWord() & 0xFFFF) + " obtained instead of 9000 in Initialize Update command");
 		}
 		
 		deriveStaticKeys();
 		computeSessionKeys();
 		computeCryptograms();
-		
-		if (logger.isInfoEnabled()) {
-			logger.info("");
-		}
 		
 		return response;
 	}
@@ -245,20 +212,10 @@ public abstract class SCP extends Application implements Bits {
 		APDUResponse response = send("External Authenticate", "84 82 " + StringHex.byteToHex(secLevel) + " 00", hostCrypto.toString(), "00");
 		if ((response.getStatusWord() & 0xFFFF) == 0x9000) {
 			this.secLevel = (byte) (SEC_LEVEL_AUTH | secLevel);
-			if (logger.isInfoEnabled()) {
-				logger.info("Secure channel successfully opened!");
-			}
 		}
 		else {
 			this.secLevel = SEC_LEVEL_NO;
-			if (logger.isInfoEnabled()) {
-				logger.info("External Authenticate command failed!");
-			}
 			throw new GPException(Integer.toHexString(response.getStatusWord()) + " obtained instead of 9000 in External Authenticate command");
-		}
-		
-		if (logger.isInfoEnabled()) {
-			logger.info("");
 		}
 		
 		return response;

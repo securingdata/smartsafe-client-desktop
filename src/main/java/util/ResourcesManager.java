@@ -17,8 +17,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
 
+
 public final class ResourcesManager {
-	private static URLClassLoader loader = (URLClassLoader)ResourcesManager.class.getClassLoader();
+	//private static URLClassLoader loader2 = (URLClassLoader)ResourcesManager.class.getClassLoader();
+	private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 	private static Map<String, Path> customLoaders = new HashMap<>();
 	private ResourcesManager() {}
 	
@@ -43,7 +45,8 @@ public final class ResourcesManager {
 	}
 	
 	public static URL getURLFile(String name) {
-		return loader.findResource(name);
+		//return loader.findResource(name);
+		return loader.getResource(name);
 	}
 	public static InputStream getResourceAsStream(String name) {
 		return loader.getResourceAsStream(name);
@@ -86,7 +89,7 @@ public final class ResourcesManager {
 		if (url.toExternalForm().startsWith("jar:")) {
 			Path file;
 			try {
-				file = Files.createTempFile(name, "");
+				file = Files.createTempFile(name.substring(name.lastIndexOf('/') + 1), "");
 			} catch (IOException e1) {
 				return null;
 			}

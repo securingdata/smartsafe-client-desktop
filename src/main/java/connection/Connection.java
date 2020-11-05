@@ -10,13 +10,10 @@ import javax.smartcardio.CardTerminal;
 import javax.smartcardio.CommandAPDU;
 import javax.smartcardio.TerminalFactory;
 
-import org.apache.log4j.Logger;
-
 import javafx.beans.property.StringProperty;
 import util.StringHex;
 
 public class Connection {
-	final static Logger logger = Logger.getLogger(Connection.class);
 	private static StringProperty logListener;
 	
 	public static void main(String[] args) throws CardException {
@@ -68,10 +65,6 @@ public class Connection {
 				card = terminal.connect("*");
 				channel = card.getBasicChannel();
 				ATR atr = card.getATR();
-				if (logger.isInfoEnabled()) {
-					logger.info("Connected to " + ct.getName());
-					logger.info("ATR: " + new StringHex(atr.getBytes()) + "\n");
-				}
 				if (logListener != null) {
 					logListener.set("Connected to " + ct.getName() + "\n");
 					logListener.set("ATR: " + new StringHex(atr.getBytes()) + "\n\n");
@@ -79,9 +72,6 @@ public class Connection {
 				return atr;
 			}
 		} catch (CardException e) {
-			if (logger.isInfoEnabled()) {
-				logger.info("Issue with reader " + ct.getName() + ": " + e.getMessage());
-			}
 			if (logListener != null) {
 				logListener.set("Issue with reader " + ct.getName() + ": " + e.getMessage() + "\n");
 			}
@@ -94,15 +84,11 @@ public class Connection {
 				ATR atr = contectAutoToReader(ct);
 				if (atr != null)
 					return atr;
-				if (logger.isInfoEnabled())
-					logger.info("Trying with reader:" + ct.getName() + "\n");
 				if (logListener != null)
 					logListener.set("Trying with reader:" + ct.getName() + "\n\n");
 
 			}
 		} catch (CardException e) {
-			if (logger.isInfoEnabled())
-				logger.info("No reader found.");
 			if (logListener != null)
 				logListener.set("No reader found.\n");
 		}
@@ -118,10 +104,6 @@ public class Connection {
 		card = terminal.connect("*");
 		channel = card.getBasicChannel();
 		ATR atr = card.getATR();
-		if (logger.isInfoEnabled()) {
-			logger.info("Cold Reset");
-			logger.info("ATR: " + new StringHex(atr.getBytes()) + "\n");
-		}
 		if (logListener != null) {
 			logListener.set("Cold Reset\n");
 			logListener.set("ATR: " + new StringHex(atr.getBytes()) + "\n\n");
@@ -133,16 +115,12 @@ public class Connection {
 		for (int i = 0; i < block.size(); i += 16) {
 			if (i == 0 && title.equals("Send: ")) {
 				tmp = title + block.get(0, Math.min(5, block.size()));
-				if (logger.isInfoEnabled())
-					logger.info(tmp);
 				if (logListener != null)
 					logListener.set(tmp + "\n");
 				i = i - 16 + 5;
 			}
 			else {
 				tmp = (i == 0 ? title : "      ") + block.get(i, Math.min(16, block.size() - i));
-				if (logger.isInfoEnabled())
-					logger.info(tmp);
 				if (logListener != null)
 					logListener.set(tmp + "\n");
 			}
@@ -152,8 +130,6 @@ public class Connection {
 		logBlock("Send: ", new StringHex(command.getBytes()));
 		APDUResponse response =  new APDUResponse(channel.transmit(command).getBytes());
 		logBlock("\nResp: ", new StringHex(response.toBytes()));
-		if (logger.isInfoEnabled())
-			logger.info("");
 		if (logListener != null)
 			logListener.set("\n");
 		return response;

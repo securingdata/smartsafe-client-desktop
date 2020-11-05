@@ -29,9 +29,23 @@ public class ProgressBarWithText extends StackPane {
 	public void setProgress(double value) {
 		bar.setProgress(value);
 	}
+	public void addProgress(double value) {
+		bar.setProgress(bar.getProgress() + value);
+	}
 	public void setProgress(double value, String text) {
 		setText(text);
 		setProgress(value);
+	}
+	public void setProgress(double value, long duration) {
+		double delta = (value - bar.getProgress()) / (duration / 250);
+		new Thread((Runnable) () -> {
+			while (bar.getProgress() < value) {
+				addProgress(delta);
+				try {
+					Thread.sleep(250);
+				} catch (InterruptedException e) {}
+			}
+		}).start();
 	}
 	public void reset() {
 		setProgress(0, "");

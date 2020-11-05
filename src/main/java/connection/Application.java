@@ -3,12 +3,9 @@ package connection;
 import javax.smartcardio.CardException;
 import javax.smartcardio.CardTerminal;
 
-import org.apache.log4j.Logger;
 import connection.loader.GPException;
 
 public class Application {
-	private static final Logger logger = Logger.getLogger(Application.class);
-	
 	private CardTerminal selectedReader;
 	protected Connection connection;
 	
@@ -49,11 +46,6 @@ public class Application {
 		}
 	}
 	public APDUResponse send(String cmdName, String header, String data, String le) throws GPException {
-		if (logger.isInfoEnabled()) {
-			logger.info("################################################".substring(0, cmdName.length() + 2));
-			logger.info(" " + cmdName);
-			logger.info("################################################".substring(0, cmdName.length() + 2));
-		}
 		return send(header, data, le);
 	}
 	public String wrap(String header, String data, String le) throws GPException {

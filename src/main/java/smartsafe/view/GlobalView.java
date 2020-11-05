@@ -1,13 +1,30 @@
 package smartsafe.view;
 
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import javax.smartcardio.CardTerminal;
 
 import compiler.Compiler;
@@ -24,12 +41,10 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
-import javafx.scene.text.Font;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -44,7 +59,6 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.PasswordField;
-import javafx.scene.control.ProgressBar;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
@@ -72,6 +86,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -352,7 +367,7 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				short sw = Controls.getAppli().createGroup(groupSize.getValue().byteValue(), groupName.getText()).getStatusWord();
+				short sw = Controls.getAppli().createGroup(groupSize.getValue().byteValue(), groupName.getText(), true).getStatusWord();
 				if (sw == SmartSafeAppli.SW_NO_ERROR) {
 					GlobalView.getGroups().getChildren().add(new TreeItem<String>(groupName.getText()));
 				}
@@ -471,7 +486,7 @@ public class GlobalView {
 				Entry entry = selectedEntry;
 				if (entry == null) {
 					entry = new Entry(identifier.getText(), userName.getText());
-					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry).getStatusWord();
+					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
 					if (sw == SmartSafeAppli.SW_FILE_FULL) {
 						errorDialog(Messages.get("ENTRY_ERROR_1"));
 						return null;
@@ -485,14 +500,14 @@ public class GlobalView {
 				
 				if ((selectedEntry == null && !password.getText().isEmpty()) ||
 					(selectedEntry != null && !password.getText().equals(oldPass))) {
-					Controls.getAppli().setData(Entry.INDEX_PASSWORD, password.getText());
-					Controls.getAppli().setData(Entry.INDEX_lAST_UPDATE, LocalDate.now().toString());
+					Controls.getAppli().setData(Entry.INDEX_PASSWORD, password.getText(), true);
+					Controls.getAppli().setData(Entry.INDEX_lAST_UPDATE, LocalDate.now().toString(), true);
 				}
 				if (expires.getValue() != null) {
-					Controls.getAppli().setData(Entry.INDEX_EXP_DATE, expires.getValue().toString());
+					Controls.getAppli().setData(Entry.INDEX_EXP_DATE, expires.getValue().toString(), true);
 				}
-				Controls.getAppli().setData(Entry.INDEX_URL, url.getText());
-				Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText());
+				Controls.getAppli().setData(Entry.INDEX_URL, url.getText(), true);
+				Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText(), true);
 				entry.maskPassword();
 			}
 			return null;
@@ -685,7 +700,14 @@ public class GlobalView {
 	
 	public static void backupDialog() {
 		Dialog<String> dialog = new Dialog<>();
-		ButtonType ok = initDialog(dialog, Images.BACKUP, Messages.get("BACKUP_DIALOG"));
+		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+		stage.getIcons().add(Images.BACKUP);
+		dialog.setTitle(Messages.get("BACKUP_DIALOG"));
+		dialog.setHeaderText(null);
+		
+		ButtonType save = new ButtonType(Messages.get("BACKUP_SAVE"), ButtonData.OK_DONE);
+		ButtonType close = new ButtonType(Messages.get("BACKUP_CLOSE"), ButtonData.CANCEL_CLOSE);
+		dialog.getDialogPane().getButtonTypes().addAll(save, close);
 		
 		
 		TextField file = new TextField();
@@ -715,34 +737,82 @@ public class GlobalView {
 		gp.add(new Label(Messages.get("BACKUP_PASSWORD")), 0, 1);
 		gp.add(password, 1, 1);
 		gp.add(show, 2, 1);
-		gp.add(new Label(Messages.get("BACKUP_INFO")), 1, 2);
+		ProgressBarWithText pb = new ProgressBarWithText();
 		
 		show.setOnAction(event -> {
 			gp.getChildren().remove(show.isSelected() ? password : password2);
 			gp.add(show.isSelected() ? password2 : password, 1, 1);
 		});
 		
-		Node okButton = dialog.getDialogPane().lookupButton(ok);
-		okButton.setDisable(true);
+		Node saveButton = dialog.getDialogPane().lookupButton(save);
+		saveButton.setDisable(true);
 
 		file.textProperty().addListener((observable, oldValue, newValue) -> {
-			okButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
+			saveButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
 		});
 		password.textProperty().addListener((observable, oldValue, newValue) -> {
-			okButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
+			saveButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
 		});
 
-		dialog.getDialogPane().setContent(gp);
+		dialog.getDialogPane().setContent(new VBox(4, gp, pb));
 		Platform.runLater(() -> file.requestFocus());
 		
-		dialog.setResultConverter(dialogButton -> {
-			if (dialogButton == ok) {
-				if (Controls.getAppli().backupData(file.getText(), password.getText()))
-					dialog("Information", Messages.get("BACKUP_INFO2") + new File(file.getText()).getAbsolutePath());
-				else
-					errorDialog(Messages.get("BACKUP_ERROR"));
-			}
-			return null;
+		saveButton.addEventFilter(ActionEvent.ACTION, event -> {
+			event.consume();
+			new Thread((Runnable) () -> {
+				pb.reset();
+				pb.setProgress(0.1, Messages.get("BACKUP_INFO_1"));
+				String tmp = "SmartSafe\n";
+				double delta = 0.8 / (Controls.getAppli().getGroups().size() + 1);
+				for (String group : Controls.getAppli().getGroups()) {
+					Controls.getAppli().selectGroup(group);
+					tmp += group + Controls.getAppli().getStats().get(3, 1).toString() + "\n";
+					double delta2 = delta / (Controls.getAppli().getEntries(group, false).size() + 1);
+					for (Entry entry : Controls.getAppli().getEntries(group, false)) {
+						pb.addProgress(delta2);
+						tmp += entry.getIdentifier().get() + "\t";
+						tmp += entry.getUserName().get() + "\t";
+						tmp += entry.getPassword().get() + "\t";
+						tmp += entry.getLastUpdate().get().toString() + "\t";
+						if (entry.getExpiresDate().get() != null)
+							tmp += entry.getExpiresDate().get().toString() + "\t";
+						else
+							tmp += "\t";
+						if (entry.getUrl().get() != null)
+							tmp += entry.getUrl().get() + "\t";
+						else
+							tmp += "\t";
+						if (entry.getNotes().get() != null)
+							tmp += entry.getNotes().get() + "\t\n";
+						else
+							tmp += "\t\n";
+						entry.maskPassword();//Mask password after reading
+					}
+					pb.addProgress(delta2);
+					tmp += "\n";
+				}
+				pb.addProgress(delta);
+				pb.setText(Messages.get("BACKUP_INFO_2"));
+				try {
+					Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+					byte[] keyValue = Crypto.keyFromPassword(password.getText()).get(0, 16).toBytes();
+					cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyValue, "AES"), new IvParameterSpec(Crypto.IV));
+					tmp = (Crypto.BACKUP_HEADER.toString() + new StringHex(cipher.doFinal(tmp.getBytes())).toString()).replace(" ", "");
+				} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e1) {
+					pb.setProgress(1, Messages.get("BACKUP_ERROR_1"));
+					pb.setTextStyle(true);
+					return;
+				}
+				
+				try (BufferedWriter bf = Files.newBufferedWriter(Paths.get(file.getText()), StandardCharsets.UTF_8)){
+					bf.write(tmp);
+				} catch (IOException e) {
+					pb.setProgress(1, Messages.get("BACKUP_ERROR_2"));
+					pb.setTextStyle(true);
+					return;
+				}
+				pb.setProgress(1, Messages.get("BACKUP_INFO_3"));
+			}).start();
 		});
 		
 		dialog.showAndWait();
@@ -877,7 +947,67 @@ public class GlobalView {
 					}
 					else {
 						if (new StringHex(resp.getData()).toString().equals("DE CA")) {
+							String tmp = "";
+							if (bckpCheck.isSelected()) {
+								//verifying data to restore
+								try (BufferedReader br = Files.newBufferedReader(Paths.get(bckpFile.getText()), StandardCharsets.UTF_8)){
+									tmp = br.readLine();
+									if (!tmp.startsWith(Crypto.BACKUP_HEADER.toString().replace(" ", ""))) {
+										pb.setProgress(1, Messages.get("INIT_PB_5"));
+										pb.setTextStyle(true);
+										return;
+									}
+									tmp = tmp.substring(Crypto.BACKUP_HEADER.toString().replace(" ", "").length());
+								} catch (IOException e) {
+									pb.setProgress(1, Messages.get("INIT_PB_6"));
+									pb.setTextStyle(true);
+									return;
+								}
+								
+								try {
+									Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+									byte[] keyValue = Crypto.keyFromPassword(bckpPass.getText()).get(0, 16).toBytes();
+									cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyValue, "AES"), new IvParameterSpec(Crypto.IV));
+									tmp = new String(cipher.doFinal(new StringHex(tmp).toBytes()));
+									if (!tmp.startsWith("SmartSafe\n")) {
+										pb.setProgress(1, Messages.get("INIT_PB_7"));
+										pb.setTextStyle(true);
+										return;
+									}
+									tmp = tmp.substring("SmartSafe\n".length());
+								} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e1) {
+									pb.setProgress(1, Messages.get("INIT_PB_8"));
+									pb.setTextStyle(true);
+									return;
+								}
+							}
+							
 							appli.changePin(userText.getText());
+							if (bckpCheck.isSelected()) {
+								Matcher mGroup = Pattern.compile("(?<GROUP>.+)(?<NB>[0-9A-F]{2})\n").matcher(tmp);
+								Matcher mEntry = Pattern.compile("(?<ID>.+)\t(?<USER>.+)\t(?<PASS>.+)\t(?<LAST>.+)\t(?<EXP>.*)\t(?<URL>.*)\t(?<NOTE>.*)\t\n?").matcher(tmp);
+								appli.authenticate(userText.getText());
+								pb.setProgress(0.1, Messages.get("INIT_PB_9"));
+								int it = 0;
+								double delta = 0.8 / tmp.length();
+								while (it + 1 < tmp.length()) {
+									mGroup.find(it);
+									appli.createGroup(Byte.valueOf(mGroup.group("NB"), 16), mGroup.group("GROUP"), false);
+									it = mGroup.end();
+									while (it < tmp.length() && tmp.charAt(it) != '\n') {
+										mEntry.find(it);
+										appli.addEntry(Entry.NB_PROPERTIES, new Entry(mEntry.group("ID"), mEntry.group("USER")), false);
+										appli.setData(Entry.INDEX_PASSWORD, mEntry.group("PASS"), false);
+										appli.setData(Entry.INDEX_lAST_UPDATE, mEntry.group("LAST"), false);
+										appli.setData(Entry.INDEX_EXP_DATE, mEntry.group("EXP"), false);
+										appli.setData(Entry.INDEX_URL, mEntry.group("URL"), false);
+										appli.setData(Entry.INDEX_NOTES, mEntry.group("NOTE"), false);
+										it = mEntry.end();
+										pb.setProgress(delta * it);
+									}
+									pb.setProgress(delta * it);
+								}
+							}
 							pb.setProgress(1, Messages.get("INIT_PB_2"));
 						}
 						else {
@@ -1139,7 +1269,7 @@ public class GlobalView {
 				try {
 					scp.coldReset();
 					scp.select("");
-					pb.setProgress(2, Messages.get("MANAGE_LOAD_1"));
+					pb.setProgress(0.2, Messages.get("MANAGE_LOAD_1"));
 					scp.initUpdate((byte) 0, (byte) 0);
 					scp.externalAuth((byte) authMode.getSelectionModel().getSelectedIndex());
 					pb.setProgress(0.3, Messages.get("MANAGE_LOAD_2"));
@@ -1149,7 +1279,7 @@ public class GlobalView {
 					gpc.delete(packAid, true);
 					pb.setProgress(0.4, Messages.get("MANAGE_LOAD_3"));
 					gpc.installForLoad(packAid, "");
-					pb.setProgress(0.5);
+					pb.setProgress(0.9, 3000);
 					gpc.loadCAP(GPCommands.getRawCap(dir.getText() + "/build/smartsafe/server/javacard/server.cap").toBytes());
 					pb.setProgress(0.9, Messages.get("MANAGE_LOAD_4"));
 					gpc.installForInstallAndMakeSelectable(packAid, appAid, appAid, "", "");

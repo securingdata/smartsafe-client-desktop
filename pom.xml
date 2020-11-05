@@ -7,45 +7,43 @@
 	<groupId>jean-dubreuil</groupId>
 	<artifactId>SmartSafeClient</artifactId>
 	<packaging>jar</packaging>
-	<version>0.8.7</version>
+	<version>0.8.8</version>
 	<name>SmartSafeClient</name>
 
 	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<version>2.3.2</version>
-				<configuration>
-					<source>1.8</source>
-					<target>1.8</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<archive>
-						<manifest>
-							<mainClass>smartsafe.view.LaunchView</mainClass>
-						</manifest>
-					</archive>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-			</plugin>
-		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.8.1</version>
+					<configuration>
+						<source>1.8</source>
+						<target>1.8</target>
+					</configuration>
+				</plugin>
+				<plugin>
+					<artifactId>maven-assembly-plugin</artifactId>
+					<version>3.3.0</version>
+					<configuration>
+						<archive>
+							<manifest>
+								<mainClass>smartsafe.view.LaunchView</mainClass>
+							</manifest>
+						</archive>
+						<descriptorRefs>
+							<descriptorRef>jar-with-dependencies</descriptorRef>
+						</descriptorRefs>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
 
 	<dependencies>
 		<dependency>
-			<groupId>log4j</groupId>
-			<artifactId>log4j</artifactId>
-			<version>1.2.16</version>
-		</dependency>
-		<dependency>
 			<groupId>org.bouncycastle</groupId>
-			<artifactId>bcprov-ext-jdk16</artifactId>
-			<version>1.46</version>
+			<artifactId>bcprov-jdk15on</artifactId>
+			<version>1.66</version>
 		</dependency>
 	</dependencies>
 

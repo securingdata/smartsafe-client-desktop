@@ -6,15 +6,11 @@ import java.util.Enumeration;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.apache.log4j.Logger;
-
 import connection.APDUResponse;
 import util.StringHex;
 import util.TLV;
 
 public class GPCommands {
-	private static final Logger logger = Logger.getLogger(GPCommands.class);
-	
 	public static final String SECURE_CLA = "84";
 	
 	public static final String INS_DELETE  = "E4";
@@ -76,9 +72,6 @@ public class GPCommands {
 	
 	public APDUResponse select(String aid) throws GPException {
 		APDUResponse resp =  scp.select(aid);
-		if (logger.isInfoEnabled()) {
-			logger.info("Analysing select response: TODO");//TODO
-		}
 		return resp;
 	}
 	public APDUResponse initUpdate(byte kvn, byte kid) throws GPException {

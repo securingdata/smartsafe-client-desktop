@@ -5,15 +5,11 @@ import java.security.Key;
 
 import javax.crypto.spec.SecretKeySpec;
 
-import org.apache.log4j.Logger;
-
 import connection.APDUResponse;
 import util.Crypto;
 import util.StringHex;
 
 public class SCP03 extends SCP {
-	private static final Logger logger = Logger.getLogger(SCP03.class);
-	
 	private static final StringHex SIXTEEN_BYTES_NULL = new StringHex("00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00");
 	private static final byte CARD_CRYPTO_DERIVATION_CSTE = 0x00;
 	private static final byte HOST_CRYPTO_DERIVATION_CSTE = 0x01;
@@ -41,13 +37,6 @@ public class SCP03 extends SCP {
 			
 			computeDerivationScheme(SMAC_DERIVATION_CSTE);
 			setSessionKey(SMAC_NAME, Crypto.aesCMAC(sMac, derivationData, null));
-			
-			if (logger.isInfoEnabled()) {
-				logger.info("Session keys:");
-				logger.info("Senc -> " + new StringHex(sEnc.getEncoded()));
-				logger.info("Smac -> " + new StringHex(sMac.getEncoded()));
-				logger.info("Kdek -> " + new StringHex(kDek.getEncoded()));
-			}
 		} catch (GeneralSecurityException e) {
 			throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
 		}
@@ -61,18 +50,10 @@ public class SCP03 extends SCP {
 			computeDerivationScheme(HOST_CRYPTO_DERIVATION_CSTE);
 			hostCrypto = Crypto.aesCMAC(sMac, derivationData, null).get(0, 8);
 			
-			if (logger.isInfoEnabled()) {
-				logger.info("Computed cryptograms:");
-				logger.info("Card -> " + computedCardCrypto);
-				logger.info("Host -> " + hostCrypto);
-			}
 		} catch (GeneralSecurityException e) {
 			throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
 		}
 		if (!cardCrypto.equals(computedCardCrypto)) {
-			if (logger.isInfoEnabled()) {
-				logger.info("Computed card cryptogram mistmatches with received one.");
-			}
 			throw new GPException("Computed card cryptogram mistmatches with received one.");
 		}
 	}
@@ -113,11 +94,6 @@ public class SCP03 extends SCP {
 				macChaining = Crypto.aesCMAC(sMac, dataToMac, macChaining);
 			} catch (GeneralSecurityException e) {
 				throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
-			}
-			if (logger.isInfoEnabled()) {
-				logger.info("Command to mac: " + header + " " + newLen + " " + data);
-				logger.info("Data to mac: " + dataToMac);
-				logger.info("Computed mac: " + macChaining.get(0, 8) + "\n");
 			}
 		}
 		

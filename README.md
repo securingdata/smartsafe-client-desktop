@@ -41,23 +41,23 @@ This application will use the Bluetooth interface in order to communicate with t
 
 ---
 
-### Useful links
-Here are examples of online stores on which you can by Java Card smart cards and card readers:
+## Known issues
 
- - [https://www.smartcardfocus.com/](https://www.smartcardfocus.com/)
- - [https://www.javacardos.com/store/products](https://www.javacardos.com/store/products)
-
-This is not an exhaustive list and these are not sponsored links.
+When running on Windows 10, the console may display this error (WARNING: Could not open/create prefs root node Software\JavaSoft\Prefs at root) and/or you may experience that the preference settings are not saved. In this case, the solution is to manually create the following registry key (by using regedit) : HKEY_LOCAL_MACHINE\Software\JavaSoft\Prefs
 
 ## Road map
 The following features are already developed:
 
  - Ability to connect to a card and perform user operations (password update, reading and writing groups and entries, etc.)
  - Ability to set preferences (language, default settings, etc)
+ - Ability to perform card content management
 
 The following features are intended to be developed:
 
  - Secure messaging between the Client and the Server in order to avoid Man-in-the-middle and replay attacks
- - Ability to perform card content management from an admin password
  - Ability to retrieve information about memory usage in the smart card and other useful stats
  - Adding help content in the rich interface
+ - Synchronization between two tokens
+ - Stream cipher
+ - Search engine in the rich interface
+ - Windows login application

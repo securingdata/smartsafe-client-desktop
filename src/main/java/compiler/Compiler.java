@@ -15,15 +15,11 @@ import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
 import javafx.beans.property.StringProperty;
-
-import org.apache.log4j.Logger;
-
 import util.CustomSecurityManager;
 import util.ResourcesManager;
 import util.StringHex;
 
 public class Compiler {
-	private static final Logger LOGGER = Logger.getLogger(Compiler.class);
 	private static final Interceptor interceptor;
 	
 	private static StringProperty logListener;
@@ -118,8 +114,6 @@ public class Compiler {
 	    
     	List<Diagnostic<? extends JavaFileObject>> list = diagnostics.getDiagnostics();
     	for (Diagnostic<? extends JavaFileObject> d : list) {
-    		if (LOGGER.isInfoEnabled())
-    			LOGGER.info(d);
     		if (logListener != null)
     			logListener.set("" + d);
     	}
@@ -166,8 +160,6 @@ public class Compiler {
 			endOffset = 0;
 		else
 			endOffset = errPrivate.indexOf("\n", endOffset);
-		if (LOGGER.isInfoEnabled())
-			LOGGER.info(errPrivate.substring(0, endOffset));
 		if (logListener != null)
 			logListener.set(errPrivate.substring(0, endOffset));
 		

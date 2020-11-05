@@ -10,6 +10,9 @@ import org.bouncycastle.crypto.params.KeyParameter;
 
 public class Crypto {
 	public static final int AES_BLOCK_SIZE = 16;
+	public static final byte[] IV = "initvectorsmarts".getBytes();
+	
+	public static final StringHex BACKUP_HEADER = new StringHex("536d61727453616665");
 	
 	public static StringHex keyFromPassword(String password) {
 		SHA512Digest sha = new SHA512Digest();
