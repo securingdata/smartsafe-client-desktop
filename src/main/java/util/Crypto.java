@@ -3,6 +3,10 @@ package util;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.bouncycastle.crypto.digests.SHA512Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.macs.CMac;
@@ -31,5 +35,24 @@ public class Crypto {
 		byte[] res = new byte[16];
 		cmac.doFinal(res, 0);
 		return new StringHex(res);
+	}
+	public static StringHex signatureISO9797_1_M2_ALG3(Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance("DES/CBC/NoPadding");
+		
+		//Padding
+		msg = StringHex.concatenate(msg, new StringHex("80"));
+		while (msg.size() % 8 != 0)
+			msg = StringHex.concatenate(msg, new StringHex("00"));
+		
+		//Single DES on blocks except the last one
+		for (int i = 0; i < msg.size() - 8; i += 8) {
+			cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key.getEncoded(), 0, 8, "DES"), new IvParameterSpec(iv.toBytes()));
+			iv = new StringHex(cipher.doFinal(msg.get(i, 8).toBytes()));
+		}
+		
+		//Final TDES
+		cipher = Cipher.getInstance("DESede/CBC/NoPadding");
+		cipher.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv.toBytes()));
+		return new StringHex(cipher.doFinal(msg.get(msg.size() - 8, 8).toBytes()));
 	}
 }

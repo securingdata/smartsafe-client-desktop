@@ -35,6 +35,7 @@ import connection.Connection;
 import connection.loader.GPCommands;
 import connection.loader.GPException;
 import connection.loader.SCP;
+import connection.loader.SCP02;
 import connection.loader.SCP03;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -1080,16 +1081,21 @@ public class GlobalView {
 		gp.add(compile, 3, 1);
 		
 		ComboBox<String> scpVersion = new ComboBox<>();
-		scpVersion.getItems().add("SCP03");
-		scpVersion.getSelectionModel().select(0);
+		scpVersion.getItems().addAll("SCP02", "SCP03");
+		scpVersion.getSelectionModel().select(1);
+		TextField implem = new TextField("15");
+		implem.setMaxWidth(30);
 		ComboBox<String> keyDerivation = new ComboBox<>();
 		keyDerivation.getItems().addAll("No derivation", "EMVCPS v1.1", "VISA", "VISA2");
 		keyDerivation.getSelectionModel().select(0);
 		ComboBox<String> authMode = new ComboBox<>();
-		authMode.getItems().addAll("Auth", "C-MAC", "C-ENC");
+		authMode.getItems().addAll("Auth", "C-MAC");//, "C-ENC"
 		authMode.getSelectionModel().select(1);
+		ComboBox<String> jcVersion = new ComboBox<>();
+		jcVersion.getItems().addAll("JC 2.2.1", "JC 2.2.2", "JC 3.0.2", "JC 3.0.4", "JC 3.0.5");
+		jcVersion.getSelectionModel().select(0);
 		HBox options = new HBox(2);
-		options.getChildren().addAll(scpVersion, keyDerivation, authMode);
+		options.getChildren().addAll(scpVersion, implem, keyDerivation, authMode, jcVersion);
 		gp.add(new Label(Messages.get("MANAGE_OPTIONS")), 0, 2);
 		gp.add(options, 1, 2);
 		
@@ -1208,6 +1214,23 @@ public class GlobalView {
 			new Thread((Runnable) () -> {
 				pb.reset();
 				pb.setText(Messages.get("MANAGE_COMPILE_1"));
+				switch (jcVersion.getSelectionModel().getSelectedItem()) {
+					case "JC 2.2.1":
+						Compiler.changeJCVersion(Compiler.JC_221);
+						break;
+					case "JC 2.2.2":
+						Compiler.changeJCVersion(Compiler.JC_222);
+						break;
+					case "JC 3.0.2":
+						Compiler.changeJCVersion(Compiler.JC_302);
+						break;
+					case "JC 3.0.4":
+						Compiler.changeJCVersion(Compiler.JC_304);
+						break;
+					case "JC 3.0.5":
+						Compiler.changeJCVersion(Compiler.JC_305);
+						break;
+				}
 				Project p = new Project("SmartSafe", dir.getText());
 				p.parsePckgs();
 				pb.setProgress(0.3);
@@ -1230,6 +1253,9 @@ public class GlobalView {
 				pb.reset();
 		    	SCP scp;
 				switch (scpVersion.getSelectionModel().getSelectedItem()) {
+					case "SCP02":
+						scp = new SCP02();
+						break;
 					case "SCP03":
 						scp = new SCP03();
 						break;
@@ -1237,7 +1263,18 @@ public class GlobalView {
 						//Should never happen
 						return;
 				}
-				
+				scp.setImplementationOption(Byte.parseByte(implem.getText(), 16));
+				byte secLevel = SCP.SEC_LEVEL_NO;
+				switch (authMode.getSelectionModel().getSelectedItem()) {
+					case "C-ENC":
+						secLevel |= SCP.SEC_LEVEL_C_DEC;
+						//no break
+					case "C-MAC":
+						secLevel |= SCP.SEC_LEVEL_C_MAC;
+						//no break
+					case "Auth":
+					default:
+				}
 				switch (keyDerivation.getSelectionModel().getSelectedItem()) {
 					case "EMVCPS v1.1":
 						scp.setStaticDerivation(SCP.StaticDerivation.EMVCPS1_1);
@@ -1271,7 +1308,7 @@ public class GlobalView {
 					scp.select("");
 					pb.setProgress(0.2, Messages.get("MANAGE_LOAD_1"));
 					scp.initUpdate((byte) 0, (byte) 0);
-					scp.externalAuth((byte) authMode.getSelectionModel().getSelectedIndex());
+					scp.externalAuth(secLevel);
 					pb.setProgress(0.3, Messages.get("MANAGE_LOAD_2"));
 					String packAid = Prefs.getPckgAID().toString();
 					String appAid = Prefs.getAppAID().toString();
@@ -1285,8 +1322,10 @@ public class GlobalView {
 					gpc.installForInstallAndMakeSelectable(packAid, appAid, appAid, "", "");
 					pb.setProgress(1, Messages.get("MANAGE_LOAD_5"));
 				} catch (GPException e) {
+					sp.set(e.getMessage());
 					pb.setProgress(1, Messages.get("MANAGE_LOAD_6"));
 					pb.setTextStyle(true);
+					e.printStackTrace();
 				}
 			}).start();
 		});

@@ -24,7 +24,13 @@ public class Compiler {
 	
 	private static StringProperty logListener;
 	
-	private static final String CONVERTER = "com.sun.javacard.converter.Main";
+	private static final String CONVERTER_2_X = "com.sun.javacard.converter.Converter";
+	private static final String CONVERTER_3_X = "com.sun.javacard.converter.Main";
+	private static String CONVERTER = CONVERTER_3_X;//by default
+	
+	private static final String CLASS_VERSION_2_X = "1.2";
+	private static final String CLASS_VERSION_3_X = "1.6";
+	private static String CLASS_VERSION = CLASS_VERSION_3_X;//by default
 
 	private static final String JC_TOOLS   = "lib/tools.jar";
 	private static final String API        = "lib/api.jar";
@@ -32,6 +38,8 @@ public class Compiler {
 	private static       String JC_HOME;
 	private static       String GP_HOME;
 	
+	public static final int JC_221 = 221;
+	public static final int JC_222 = 222;
 	public static final int JC_302 = 302;
 	public static final int JC_304 = 304;
 	public static final int JC_305 = 305;
@@ -71,6 +79,10 @@ public class Compiler {
 		logListener = sp;
 	}
 	public static void changeJCVersion(int version) {
+		if (version <= JC_222) {
+			CONVERTER = CONVERTER_2_X;
+			CLASS_VERSION = CLASS_VERSION_2_X;
+		}
 		JC_HOME = "bin/javacard/v_" + version + "/";
 		System.setProperty("jc.home", ResourcesManager.getFileInDir(JC_HOME + API, "lib").toFile().getAbsolutePath());
 	}
@@ -83,8 +95,8 @@ public class Compiler {
 		Path gpAPI = ResourcesManager.getFile(GP_HOME + API);
 		List<String> srcFiles = new LinkedList<>();
 		List<String> options = new LinkedList<>();
-		options.add("-source"); options.add("1.6");
-		options.add("-target"); options.add("1.6");
+		options.add("-source"); options.add(CLASS_VERSION);
+		options.add("-target"); options.add(CLASS_VERSION);
 		options.add("-d");  options.add(outDir);
 		
 		String classpath = jcAPI.toFile().getAbsolutePath() + ";" + gpAPI.toFile().getAbsolutePath() + ";" + srcDir;
@@ -93,7 +105,7 @@ public class Compiler {
 				classpath += ";" + cp;
 		}
 		options.add("-cp"); options.add(classpath);
-		options.add("-bootclasspath"); options.add(ResourcesManager.getFile(JC_HOME + API).toFile().getAbsolutePath());
+		//options.add("-bootclasspath"); options.add(ResourcesManager.getFile(JC_HOME + API).toFile().getAbsolutePath());
 		
 		for (File file : Paths.get(srcDir, packagePath).toFile().listFiles()) {
 			if (file.getName().endsWith(".java") && ((!integer && !file.getName().endsWith("Int.java")) || integer))
@@ -155,7 +167,8 @@ public class Compiler {
 		String errPrivate = interceptor.getRecord();
 		interceptor.detach();
 		
-		int endOffset = errPrivate.indexOf("INFOS: conversion completed with ");
+		
+		int endOffset = errPrivate.indexOf("conversion completed with ");
 		if (endOffset == -1)
 			endOffset = 0;
 		else
@@ -163,6 +176,6 @@ public class Compiler {
 		if (logListener != null)
 			logListener.set(errPrivate.substring(0, endOffset));
 		
-		return errPrivate.indexOf("INFOS: conversion completed with 0 errors") != -1;
+		return errPrivate.indexOf("conversion completed with 0 errors") != -1;
 	}
 }

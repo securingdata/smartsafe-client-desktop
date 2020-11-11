@@ -28,14 +28,6 @@ public abstract class SCP extends Application implements Bits {
 	public static final byte SEC_LEVEL_ANY_AUTH = BIT7;
 	public static final byte SEC_LEVEL_AUTH     = BIT8;
 	
-	protected static final byte THREE_SCP_KEYS           = BIT1;
-	protected static final byte CMAC_ON_UNMODIFIED_APDU  = BIT2;
-	protected static final byte INITIATION_MODE_EXPLICIT = BIT3;
-	protected static final byte ICV_SET_TO_MAC_OVER_AID  = BIT4;
-	protected static final byte ICV_ENCRYPT_FOR_CMAC     = BIT5;
-	protected static final byte RMAC_SUPPORT             = BIT6;
-	protected static final byte WELL_KNOWN_PSEUDO_RANDOM = BIT7;
-	
 	protected static final int KEY_DIV_DATA_LEN = 10;
 	protected              int KEY_INFO_LEN;
 	protected static final int CHALLENGE_LEN    = 8;
@@ -66,7 +58,6 @@ public abstract class SCP extends Application implements Bits {
 	protected SCP() {
 		super(null);
 		keySet = new HashMap<>();
-		implementation = (byte) 0x15;
 		staticDerivation = StaticDerivation.NO_DERIVATION;
 		KEY_INFO_LEN = 2;
 		secLevel = SEC_LEVEL_NO;
@@ -83,29 +74,9 @@ public abstract class SCP extends Application implements Bits {
 		keySet.put(kvnAndKid, key);
 	}
 	
-	public boolean isThreeSCPKeys() {
-		return (implementation & THREE_SCP_KEYS) != 0;
-	}
-	public boolean isCMACOnUnmodifiedAPDU() {
-		return (implementation & CMAC_ON_UNMODIFIED_APDU) != 0;
-	}
-	public boolean isInitiationModeExplicit() {
-		return (implementation & INITIATION_MODE_EXPLICIT) != 0;
-	}
-	public boolean isIcvSetToMACOverAID() {
-		return (implementation & ICV_SET_TO_MAC_OVER_AID) != 0;
-	}
-	public boolean isIcvEncryptForCMAC() {
-		return (implementation & ICV_ENCRYPT_FOR_CMAC) != 0;
-	}
-	public boolean isRMACSupported() {
-		return (implementation & RMAC_SUPPORT) != 0;
-	}
-	public boolean isWellKnownPseudoRandom() {
-		return (implementation & WELL_KNOWN_PSEUDO_RANDOM) != 0;
-	}
-	
+	@Deprecated
 	public abstract String getCipherName();
+	@Deprecated
 	public Cipher getCipher() throws GPException {
 		try {
 			return Cipher.getInstance(getCipherName());
@@ -120,9 +91,20 @@ public abstract class SCP extends Application implements Bits {
 	protected Key getKey(short kvnAndKid) {
 		return keySet.get(Short.valueOf(kvnAndKid));
 	}
+	public Key instanciateKey(String key) {
+		return instanciateKey(new StringHex(key));
+	}
+	public Key instanciateKey(StringHex key) {
+		return instanciateKey(key.toBytes());
+	}
 	public abstract Key instanciateKey(byte[] keyValue);
+	protected Key convertInTDES(Key k) {
+		return convertInTDES(new StringHex(k.getEncoded()));
+	}
 	protected Key convertInTDES(StringHex des2) {
-		return new SecretKeySpec(StringHex.concatenate(des2, des2.get(0, 8)).toBytes(), "DESede");
+		if (des2.size() == 16)
+			des2 = StringHex.concatenate(des2, des2.get(0, 8));
+		return new SecretKeySpec(des2.toBytes(), "DESede");
 	}
 	public void setSessionKey(String keyName, StringHex keyValue) throws GPException {
 		setSessionKey(keyName, keyValue.toBytes());
@@ -144,7 +126,7 @@ public abstract class SCP extends Application implements Bits {
 	}
 	public void deriveStaticKeys() throws GPException {
 		StringHex kdd = null;
-		Cipher cipher = getCipher();
+		Cipher cipher;
 		
 		try {
 			switch(staticDerivation) {
@@ -153,27 +135,60 @@ public abstract class SCP extends Application implements Bits {
 					setSessionKey(SMAC_NAME, getKey((short) (currentKeys + 1)).getEncoded());
 					setSessionKey(KDEK_NAME, getKey((short) (currentKeys + 2)).getEncoded());
 					return;
-				case EMVCPS1_1://EMVCPS
+				case EMVCPS1_1:
 					kdd = StringHex.concatenate(keyDivData.get(4, 6), new StringHex("F0 01"), 
 												keyDivData.get(4, 6), new StringHex("0F 01"));
 					cipher = Cipher.getInstance("DESede/ECB/NoPadding");
 					
-					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(new StringHex(getKey(currentKeys).getEncoded())));
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey(currentKeys)));
 					setSessionKey(SENC_NAME, cipher.doFinal(kdd.toBytes()));
 
-					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(new StringHex(getKey((short) (currentKeys + 1)).getEncoded())));
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 1))));
 					kdd.set(7, (byte) 0x02);
 					kdd.set(15, (byte) 0x02);
 					setSessionKey(SMAC_NAME, cipher.doFinal(kdd.toBytes()));
 					
-					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(new StringHex(getKey((short) (currentKeys + 2)).getEncoded())));
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 2))));
 					kdd.set(7, (byte) 0x03);
 					kdd.set(15, (byte) 0x03);
 					setSessionKey(KDEK_NAME, cipher.doFinal(kdd.toBytes()));
 					break;
 				case VISA:
+					cipher = Cipher.getInstance("DESede/ECB/NoPadding");
+					kdd = keyDivData.get(2, 8);
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey(currentKeys)));
+					StringHex left = new StringHex("FF FF");
+					StringHex right = new StringHex("01 00 00 00 00 00");
+					setSessionKey(SENC_NAME, cipher.doFinal(StringHex.concatenate(left, kdd, right).toBytes()));
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 1))));
+					left = new StringHex("00 00");
+					right = new StringHex("02 00 00 00 00 00");
+					setSessionKey(SMAC_NAME, cipher.doFinal(StringHex.concatenate(left, kdd, right).toBytes()));
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 2))));
+					left = new StringHex("F0 F0");
+					right = new StringHex("03 00 00 00 00 00");
+					setSessionKey(KDEK_NAME, cipher.doFinal(StringHex.concatenate(left, kdd, right).toBytes()));
 					break;
 				case VISA2:
+					kdd = StringHex.concatenate(keyDivData.get(0, 2), keyDivData.get(4, 4), new StringHex("F0 01"), 
+												keyDivData.get(0, 2), keyDivData.get(4, 4), new StringHex("0F 01"));
+					cipher = Cipher.getInstance("DESede/ECB/NoPadding");
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey(currentKeys)));
+					setSessionKey(SENC_NAME, cipher.doFinal(kdd.toBytes()));
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 1))));
+					kdd.set(7, (byte) 0x02);
+					kdd.set(15, (byte) 0x02);
+					setSessionKey(SMAC_NAME, cipher.doFinal(kdd.toBytes()));
+					
+					cipher.init(Cipher.ENCRYPT_MODE, convertInTDES(getKey((short) (currentKeys + 2))));
+					kdd.set(7, (byte) 0x03);
+					kdd.set(15, (byte) 0x03);
+					setSessionKey(KDEK_NAME, cipher.doFinal(kdd.toBytes()));
 					break;
 			}
 		} catch (GeneralSecurityException e) {
