@@ -10,7 +10,9 @@ import javax.crypto.spec.SecretKeySpec;
 import org.bouncycastle.crypto.digests.SHA512Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.macs.CMac;
+import org.bouncycastle.crypto.modes.CBCBlockCipher;
 import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.ParametersWithIV;
 
 public class Crypto {
 	public static final int AES_BLOCK_SIZE = 16;
@@ -26,6 +28,25 @@ public class Crypto {
 		return new StringHex(res);
 	}
 	
+	public static StringHex aes(Key key, StringHex msg) throws GeneralSecurityException {
+		byte[] res = new byte[msg.size()];
+		AESEngine cipher = new AESEngine();
+		cipher.init(true, new KeyParameter(key.getEncoded()));
+		cipher.processBlock(msg.toBytes(), 0, res, 0);
+		return new StringHex(res);
+	}
+	public static StringHex aesCBC(Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
+		//Padding
+		msg = StringHex.concatenate(msg, new StringHex("80"));
+		while (msg.size() % 16 != 0)
+			msg = StringHex.concatenate(msg, new StringHex("00"));
+		
+		byte[] res = new byte[msg.size()];
+		CBCBlockCipher cipher = new CBCBlockCipher(new AESEngine());
+		cipher.init(true, new ParametersWithIV(new KeyParameter(key.getEncoded()), iv.toBytes()));
+		cipher.processBlock(msg.toBytes(), 0, res, 0);
+		return new StringHex(res);
+	}
 	public static StringHex aesCMAC(Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
 		if (iv != null)
 			msg = StringHex.concatenate(iv, msg);

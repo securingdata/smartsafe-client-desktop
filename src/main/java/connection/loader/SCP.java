@@ -8,6 +8,7 @@ import java.util.HashMap;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
+import javax.smartcardio.CardTerminal;
 
 import connection.APDUResponse;
 import connection.Application;
@@ -55,8 +56,8 @@ public abstract class SCP extends Application implements Bits {
 	protected StringHex keyInfo;
 	protected StringHex derivationData;
 	
-	protected SCP() {
-		super(null);
+	protected SCP(CardTerminal reader) {
+		super(reader);
 		keySet = new HashMap<>();
 		staticDerivation = StaticDerivation.NO_DERIVATION;
 		KEY_INFO_LEN = 2;

@@ -6,6 +6,7 @@ import java.security.Key;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.smartcardio.CardTerminal;
 
 import connection.APDUResponse;
 import util.Crypto;
@@ -21,6 +22,10 @@ public class SCP02 extends SCP {
 	protected static final byte ICV_ENCRYPT_FOR_CMAC     = BIT5;
 	protected static final byte RMAC_SUPPORT             = BIT6;
 	protected static final byte WELL_KNOWN_PSEUDO_RANDOM = BIT7;
+	
+	public SCP02(CardTerminal reader) {
+		super(reader);
+	}
 	
 	public boolean isCMACOnUnmodifiedAPDU() {
 		return (implementation & CMAC_ON_UNMODIFIED_APDU) != 0;

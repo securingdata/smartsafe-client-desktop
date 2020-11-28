@@ -21,6 +21,9 @@ public interface Prefs {
 	public String KEY_APP_AID_SUFFIX = "app_aid";
 	public String DEFAULT_APP_AID_SUFFIX = "App";
 	
+	public String KEY_READER = "reader";
+	public String DEFAULT_READER = "";
+	
 	static Locale prefToLocale() {
 		switch(myPrefs.get(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE)) {
 			default:

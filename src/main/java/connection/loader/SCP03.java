@@ -4,6 +4,7 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 
 import javax.crypto.spec.SecretKeySpec;
+import javax.smartcardio.CardTerminal;
 
 import connection.APDUResponse;
 import util.Crypto;
@@ -17,9 +18,12 @@ public class SCP03 extends SCP {
 	private static final byte SMAC_DERIVATION_CSTE        = 0x06;
 	private static final byte RMAC_DERIVATION_CSTE        = 0x07;
 	
-	public SCP03() {
-		super();
+	private int encryptionCounter;
+	
+	public SCP03(CardTerminal reader) {
+		super(reader);
 		KEY_INFO_LEN = 3;
+		encryptionCounter = 1;
 	}
 	
 	
@@ -86,6 +90,21 @@ public class SCP03 extends SCP {
 			return data;
 		
 		if ((secLevel & SEC_LEVEL_C_MAC) != 0) {
+			if ((secLevel & SEC_LEVEL_C_DEC) != 0) {
+				//For IV
+				String tmp = StringHex.intToHex(encryptionCounter);
+				while (tmp.length() != 32)
+					tmp = "00" + tmp;
+				
+				try {
+					StringHex iv = Crypto.aes(sEnc, new StringHex(tmp));
+					data = Crypto.aesCBC(sEnc, new StringHex(data), iv).toString();
+					encryptionCounter++;
+				} catch (GeneralSecurityException e) {
+					throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
+				}
+			}
+			
 			String newLen = StringHex.byteToHex((byte) (new StringHex(data).size() + 8));
 			if (macChaining == null)
 				macChaining = SIXTEEN_BYTES_NULL;

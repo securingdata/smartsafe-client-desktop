@@ -1,4 +1,4 @@
-package smartsafe.view;
+package smartsafe.controller;
 
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
@@ -13,8 +13,6 @@ import javax.smartcardio.CardTerminal;
 
 import connection.APDUResponse;
 import connection.loader.GPException;
-import javafx.beans.property.BooleanProperty;
-import javafx.beans.property.SimpleBooleanProperty;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBase;
 import javafx.scene.control.MenuItem;
@@ -26,11 +24,11 @@ import javafx.scene.input.KeyCombination;
 import smartsafe.Messages;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
+import smartsafe.view.GlobalView;
+import smartsafe.view.Images;
+import smartsafe.view.ViewUtils;
 
 public class Controls {
-	private static final BooleanProperty cardConnected = new SimpleBooleanProperty();
-	private static final BooleanProperty groupSelected = new SimpleBooleanProperty();
-	private static final BooleanProperty entrySelected = new SimpleBooleanProperty();
 	private static ToggleButton connection;
 	private static MenuItem connectionMenu;
 	private static SmartSafeAppli appli;
@@ -48,32 +46,28 @@ public class Controls {
 			GlobalView.connectDialog();
 		}
 		else {
+			//Disconnect and clear view
 			appli.disconnect();
 			appli = null;
-			
+			GlobalView.getGroups().getChildren().clear();
+			selectGroup(null);
+		}
+		
+		//Update view
+		ViewUtils.cardConnected.set(appli != null);
+		connection.setSelected(appli != null);
+		if (appli != null) {
+			connection.setGraphic(new ImageView(Images.DISCONNECT));
+			connection.setTooltip(new Tooltip(Controls.DISCONNECT));
+			connectionMenu.setGraphic(new ImageView(Images.DISCONNECT));
+			connectionMenu.setText(Controls.DISCONNECT);
+		}
+		else {
 			connection.setGraphic(new ImageView(Images.CONNECT));
 			connection.setTooltip(new Tooltip(CONNECT));
 			connectionMenu.setGraphic(new ImageView(Images.CONNECT));
 			connectionMenu.setText(CONNECT);
 		}
-		cardConnected.set(appli != null);
-		connection.setSelected(appli != null);
-		
-		//Clearing
-		GlobalView.getGroups().getChildren().clear();
-		
-		//Updating only if the application still exists
-		if (appli == null) {
-			selectGroup(null);
-			return;
-		}
-		connection.setGraphic(new ImageView(Images.DISCONNECT));
-		connection.setTooltip(new Tooltip(Controls.DISCONNECT));
-		connectionMenu.setGraphic(new ImageView(Images.DISCONNECT));
-		connectionMenu.setText(Controls.DISCONNECT);
-		for (String group : appli.getGroups())
-			GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
-		appli.getAivailableMemory();
 	});
 	
 	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
@@ -163,6 +157,7 @@ public class Controls {
 	public static final String SHOW_PASS = Messages.get("SHOW_PASS");
 	public static final Action ACTION_SHOW_PASS = new Action(SHOW_PASS, false, null, params -> {
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
 	});
@@ -205,45 +200,47 @@ public class Controls {
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+Q"));
 		
 		BUTTONS.add(b = new Button("", new ImageView(Images.NEW_GROUP)));
-		addDisableListener(b, cardConnected);
+		ViewUtils.addDisableListener(b, ViewUtils.cardConnected);
 		b.setTooltip(new Tooltip(NEW_GROUP));
 		b.setOnAction(event -> ACTION_NEW_GROUP.run());
 		
 		ITEMS.add(mi = new MenuItem(NEW_GROUP, new ImageView(Images.NEW_GROUP)));
-		addDisableListener(mi, cardConnected);
+		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_NEW_GROUP.run());
 		
 		BUTTONS.add(b = new Button("", new ImageView(Images.NEW_ENTRY)));
-		addDisableListener(b, groupSelected);
+		ViewUtils.addDisableListener(b, ViewUtils.groupSelected);
 		b.setTooltip(new Tooltip(NEW_ENTRY));
 		b.setOnAction(event -> ACTION_NEW_ENTRY.run());
 		
 		ITEMS.add(mi = new MenuItem(NEW_ENTRY, new ImageView(Images.NEW_ENTRY)));
-		addDisableListener(mi, groupSelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.groupSelected);
 		mi.setOnAction(event -> ACTION_NEW_ENTRY.run());
 		
 		BUTTONS.add(b = new Button("", new ImageView(Images.DELETE)));
-		addDisableListener(b, groupSelected);
+		ViewUtils.addDisableListener(b, ViewUtils.groupSelected);
 		b.setTooltip(new Tooltip(DELETE));
 		b.setOnAction(event -> ACTION_DELETE.run());
 		
 		ITEMS.add(mi = new MenuItem(DELETE, new ImageView(Images.DELETE)));
-		addDisableListener(mi, groupSelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.groupSelected);
 		mi.setOnAction(event -> ACTION_DELETE.run());
 		mi.setAccelerator(KeyCombination.valueOf("Delete"));
 		
 		ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
-		addDisableListener(mi, cardConnected);
+		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_CHANGE_PIN.run());
 		
 		ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
-		addDisableListener(mi, cardConnected);
+		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_BACKUP.run());
 		
 		ITEMS.add(mi = new MenuItem(INIT, new ImageView(Images.INIT)));
+		ViewUtils.addEnableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_INIT.run());
 		
 		ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
+		ViewUtils.addEnableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_UPDATE.run());
 		
 		ITEMS.add(mi = new MenuItem(EXIT));
@@ -251,27 +248,27 @@ public class Controls {
 		mi.setAccelerator(KeyCombination.valueOf("Alt+F4"));
 		
 		ITEMS.add(mi = new MenuItem(EDIT, new ImageView(Images.EDIT)));
-		addDisableListener(mi, entrySelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_EDIT.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+E"));
 		
 		ITEMS.add(mi = new MenuItem(GOTO, new ImageView(Images.GOTO)));
-		addDisableListener(mi, entrySelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_GOTO.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+G"));
 		
 		ITEMS.add(mi = new MenuItem(COPY_USER, new ImageView(Images.COPY)));
-		addDisableListener(mi, entrySelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_COPY_USER.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+X"));
 		
 		ITEMS.add(mi = new MenuItem(COPY_PASS, new ImageView(Images.COPY_PASS)));
-		addDisableListener(mi, entrySelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_COPY_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+C"));
 		
 		ITEMS.add(mi = new MenuItem(SHOW_PASS, new ImageView(Images.SHOW_PASS)));
-		addDisableListener(mi, entrySelected);
+		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_SHOW_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+S"));
 		
@@ -280,7 +277,7 @@ public class Controls {
 		mi.setAccelerator(KeyCombination.valueOf("F1"));
 		
 		ITEMS.add(mi = new MenuItem(PROPERTIES, new ImageView(Images.PROPERTIES)));
-		addDisableListener(mi, cardConnected);
+		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_PROPERTIES.run());
 		
 		ITEMS.add(mi = new MenuItem(PREFERENCES, new ImageView(Images.PREFERENCES)));
@@ -289,9 +286,9 @@ public class Controls {
 		ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
 		mi.setOnAction(event -> ACTION_ABOUT.run());
 		
-		cardConnected.set(false);
-		groupSelected.set(false);
-		entrySelected.set(false);
+		ViewUtils.cardConnected.set(false);
+		ViewUtils.groupSelected.set(false);
+		ViewUtils.entrySelected.set(false);
 	}
 	
 	public static ButtonBase getButton(String name) {
@@ -309,9 +306,6 @@ public class Controls {
 	
 	public static void handle(Action action) {
 		action.run();
-	}
-	public static BooleanProperty getEntrySelectedProperty() {
-		return entrySelected;
 	}
 	public static void createAppli(CardTerminal reader, String password) {
 		appli = new SmartSafeAppli(reader);
@@ -333,20 +327,13 @@ public class Controls {
 		appli = null;
 	}
 	public static void selectGroup(String groupName) {
-		groupSelected.set(groupName != null);
+		ViewUtils.groupSelected.set(groupName != null);
 		GlobalView.getTableEntries().getItems().clear();
 		if (groupName == null) {
+			GlobalView.getGroupsView().getSelectionModel().clearSelection();
 			return;
 		}
+		
 		GlobalView.getTableEntries().getItems().addAll(appli.getEntries(groupName, true));
-	}
-	
-	private static void addDisableListener(ButtonBase b, BooleanProperty prop) {
-		b.setDisable(!prop.get());
-		prop.addListener((ov, oldV, newV) -> b.setDisable(!newV.booleanValue()));
-	}
-	private static void addDisableListener(MenuItem mi, BooleanProperty prop) {
-		mi.setDisable(!prop.get());
-		prop.addListener((ov, oldV, newV) -> mi.setDisable(!newV.booleanValue()));
 	}
 }

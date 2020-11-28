@@ -1,4 +1,4 @@
-package smartsafe.view;
+package main;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -14,6 +14,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import smartsafe.view.GlobalView;
 
 public class LaunchView extends Application {
 	public static void main(String[] args) {

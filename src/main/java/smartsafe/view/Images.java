@@ -5,6 +5,7 @@ import util.ResourcesManager;
 import javafx.scene.image.Image;
 
 public interface Images {
+	Image SMARTSAFE       = new Image(ResourcesManager.getResourceAsStream("icons/smart_safe.png"));
 	Image ABOUT           = new Image(ResourcesManager.getResourceAsStream("icons/about.gif"));
 	Image BACKUP          = new Image(ResourcesManager.getResourceAsStream("icons/backup.gif"));
 	Image CONNECT         = new Image(ResourcesManager.getResourceAsStream("icons/connect.png"));

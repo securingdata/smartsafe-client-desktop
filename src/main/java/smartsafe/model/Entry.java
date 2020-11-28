@@ -16,6 +16,7 @@ public class Entry {
 	public static final byte INDEX_NOTES       = (byte) 4;
 	public static final byte NB_PROPERTIES = (byte) 5;
 	
+	public final String group;
 	private StringProperty identifier;
 	private StringProperty userName;
 	private StringProperty password;
@@ -24,7 +25,8 @@ public class Entry {
 	private StringProperty url;
 	private StringProperty notes;
 	
-	public Entry() {
+	public Entry(String group) {
+		this.group = group;
 		this.identifier = new SimpleStringProperty();
 		this.userName = new SimpleStringProperty();
 		this.password = new SimpleStringProperty();
@@ -33,16 +35,16 @@ public class Entry {
 		this.url = new SimpleStringProperty();
 		this.notes = new SimpleStringProperty();
 	}
-	public Entry(String identifier) {
-		this();
+	public Entry(String group, String identifier) {
+		this(group);
 		setIdentifier(identifier);
 	}
-	public Entry(String identifier, String userName) {
-		this(identifier);
+	public Entry(String group, String identifier, String userName) {
+		this(group, identifier);
 		setUserName(userName);
 	}
-	public Entry(String[] identifierAndUserName) {
-		this(identifierAndUserName[0], identifierAndUserName[1]);
+	public Entry(String group, String[] identifierAndUserName) {
+		this(group, identifierAndUserName[0], identifierAndUserName[1]);
 	}
 
 	public String getFullIdentifier() {

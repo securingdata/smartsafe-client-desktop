@@ -30,6 +30,9 @@ public class SmartSafeAppli extends Application {
 		super(reader);
 	}
 	
+	public String getSelectedGroup() {
+		return selectedGroup;
+	}
 	public Set<String> getGroups() {
 		if (groups == null) {
 			groups = new HashMap<String, List<Entry>>();
@@ -55,7 +58,7 @@ public class SmartSafeAppli extends Application {
 			do {
 				resp = listEntries(p1);
 				for (String entry : parseList(resp.getData())) {
-					Entry e = new Entry(entry.split(Entry.SEPARATOR));
+					Entry e = new Entry(group, entry.split(Entry.SEPARATOR));
 					selectEntry(e);
 					getData(Entry.INDEX_PASSWORD);
 					getData(Entry.INDEX_URL);

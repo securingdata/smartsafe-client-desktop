@@ -124,4 +124,8 @@ public class GPCommands {
 	public APDUResponse load(boolean lastBlock, byte blockNumber, String block) throws GPException {
 		return scp.send("Load", SECURE_CLA + INS_LOAD + (lastBlock ? "80" : "00") + StringHex.byteToHex(blockNumber), block, "00");
 	}
+	public APDUResponse getData(String tag) throws GPException {
+		String cla = scp.secLevel != 0 ? SECURE_CLA : "00";
+		return scp.send(cla + "CA" + tag, "", "");
+	}
 }

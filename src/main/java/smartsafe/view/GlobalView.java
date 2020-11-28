@@ -38,14 +38,12 @@ import connection.loader.SCP;
 import connection.loader.SCP02;
 import connection.loader.SCP03;
 import javafx.application.Platform;
-import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
-import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
@@ -76,6 +74,8 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeView;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.Border;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.BorderStroke;
@@ -84,6 +84,7 @@ import javafx.scene.layout.BorderWidths;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -96,6 +97,7 @@ import smartsafe.Messages;
 import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
+import smartsafe.controller.Controls;
 import smartsafe.model.Entry;
 import util.Crypto;
 import util.StringHex;
@@ -104,6 +106,7 @@ public class GlobalView {
 	private static TreeView<String> groupsView;
 	private static TreeItem<String> root;
 	private static TableView<Entry> table;
+	private static TextField searchField;
 	private static TitledPane details;
 	private static Label lastUpdate, expiresOn;
 	private static TextArea notes;
@@ -130,6 +133,11 @@ public class GlobalView {
 		tb.getItems().add(Controls.getButton(Controls.NEW_GROUP));
 		tb.getItems().add(Controls.getButton(Controls.NEW_ENTRY));
 		tb.getItems().add(Controls.getButton(Controls.DELETE));
+		HBox hb = new HBox();
+		HBox.setHgrow(hb, Priority.ALWAYS);
+		tb.getItems().add(hb);
+		tb.getItems().add(searchField = new TextField());
+		ViewUtils.addDisableListener(searchField, ViewUtils.cardConnected);
 		
 		BorderPane rootPane = new BorderPane(mainPane);
 		rootPane.setTop(tb);
@@ -166,6 +174,40 @@ public class GlobalView {
 		
 		BorderPane superRoot = new BorderPane(rootPane);
 		superRoot.setTop(mb);
+		superRoot.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent event) -> {
+            if (event.isControlDown() && event.getCode() == KeyCode.F) {
+                event.consume();
+                searchField.requestFocus();
+                
+                //In order to force refresh of selected entries
+                String tmp = searchField.getText();
+                searchField.setText("");
+                searchField.setText(tmp);
+                searchField.selectAll();
+            }
+        });
+		searchField.addEventFilter(KeyEvent.KEY_PRESSED, (KeyEvent event) -> {
+            if (event.getCode() == KeyCode.ESCAPE) {
+                event.consume();
+                if (searchField.getText().length() != 0) {
+                	searchField.setText("");
+                }
+                else {
+                	groupsView.requestFocus();
+                }
+            }
+        });
+		searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+			Controls.selectGroup(null);
+			if (newValue.isEmpty())
+				return;
+			for (String group : Controls.getAppli().getGroups()) {
+				for (Entry e : Controls.getAppli().getEntries(group, true)) {
+					if (e.getIdentifier().get().toLowerCase().contains(newValue))
+						GlobalView.getTableEntries().getItems().add(e);
+				}
+			}
+		});
 		
 		return superRoot;
 	}
@@ -174,6 +216,9 @@ public class GlobalView {
 	}
 	public static TreeItem<String> getGroups() {
 		return root;
+	}
+	public static TextField getSearchField() {
+		return searchField;
 	}
 	public static TableView<Entry> getTableEntries() {
 		if (table == null) {
@@ -201,7 +246,7 @@ public class GlobalView {
 			table.setPlaceholder(new Label(""));
 			
 			table.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
-				Controls.getEntrySelectedProperty().set(newValue != null);
+				ViewUtils.entrySelected.set(newValue != null);
 				if (oldValue != null)
 					oldValue.maskPassword();
 				if (newValue == null) {
@@ -250,19 +295,6 @@ public class GlobalView {
 	private static String formatDate(LocalDate date) {
 		return date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));//TODO prefs
 	}
-	private static void addDisableListener(Node n, BooleanProperty prop) {
-		n.setDisable(!prop.get());
-		prop.addListener((ov, oldV, newV) -> n.setDisable(!newV.booleanValue()));
-	}
-	private static void bindTextAndPassField(TextField tf, PasswordField pf) {
-		tf.textProperty().addListener((observable, oldValue, newValue) -> pf.setText(newValue));
-		pf.textProperty().addListener((observable, oldValue, newValue) -> tf.setText(newValue));
-	}
-	private static ImageView createWarning() {
-		ImageView iv = new ImageView(Images.WARNING);
-		StackPane.setAlignment(iv, Pos.CENTER_RIGHT);
-		return iv;
-	}
 	public static Dialog<ButtonType> errorDialog(String error) {
 		return dialog(Messages.get("ERROR_DIALOG"), error);
 	}
@@ -297,6 +329,10 @@ public class GlobalView {
 		ComboBox<CardTerminal> readerList = new ComboBox<>();
 		readerList.getItems().addAll(terminals);
 		readerList.getSelectionModel().select(0);
+		for (int i = 0; i < terminals.size(); i++) {
+			if (terminals.get(i).getName() == Prefs.myPrefs.get(Prefs.KEY_READER, Prefs.DEFAULT_READER))
+				readerList.getSelectionModel().select(i);
+		}
 		return readerList;
 	}
 	
@@ -332,6 +368,16 @@ public class GlobalView {
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
 				Controls.createAppli(readerList.getValue(), password.getText());
+				if (Controls.getAppli() != null) {
+					Prefs.myPrefs.put(Prefs.KEY_READER, readerList.getValue().toString());
+					
+					new Thread((Runnable) () -> {
+						for (String group : Controls.getAppli().getGroups()) {
+							Controls.getAppli().getEntries(group, true);
+							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
+						}
+					}).start();
+				}
 			}
 			return null;
 		});
@@ -486,7 +532,7 @@ public class GlobalView {
 			if (dialogButton == ok) {
 				Entry entry = selectedEntry;
 				if (entry == null) {
-					entry = new Entry(identifier.getText(), userName.getText());
+					entry = new Entry(Controls.getAppli().getSelectedGroup(), identifier.getText(), userName.getText());
 					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
 					if (sw == SmartSafeAppli.SW_FILE_FULL) {
 						errorDialog(Messages.get("ENTRY_ERROR_1"));
@@ -725,7 +771,7 @@ public class GlobalView {
 		
 		PasswordField password = new PasswordField();
 		TextField password2 = new TextField();
-		bindTextAndPassField(password2, password);
+		ViewUtils.bindTextAndPassField(password2, password);
 		ToggleButton show = new ToggleButton(Messages.get("MANAGE_SHOW"));
 		show.setMaxWidth(Double.MAX_VALUE);
 		
@@ -818,30 +864,7 @@ public class GlobalView {
 		
 		dialog.showAndWait();
 	}
-	private static void keyValidator(IntegerProperty validator, StackPane keySp, ComboBox<String> keyComboBox, String newValue, int keyPosition) {
-		ImageView iv = (ImageView) keySp.getChildren().get(1);
-		boolean tmp;
-		if (keyComboBox.getSelectionModel().getSelectedIndex() == 0) {
-			int len = newValue.replaceAll(" ", "").length();
-			tmp = (len != 16*2 && len != 16*2*3) || !newValue.matches("[0-9a-fA-F ]+");
-		}
-		else
-			tmp = newValue.isEmpty();
-		iv.setVisible(tmp);
-		if (tmp)
-			validator.set(validator.get() | keyPosition);
-		else
-			validator.set(validator.get() & ~keyPosition);
-	}
-	private static void bckpFileValidator(IntegerProperty validator, StackPane bckpSp, String newValue, boolean active) {
-		ImageView iv = (ImageView) bckpSp.getChildren().get(1);
-		boolean tmp = active && (newValue.isEmpty() || !new File(newValue).exists());
-		iv.setVisible(tmp);
-		if (tmp)
-			validator.set(validator.get() | 0x8);
-		else
-			validator.set(validator.get() & ~0x8);
-	}
+
 	public static void firstInitDialog() {
 		Dialog<String> dialog = new Dialog<>();
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
@@ -867,10 +890,10 @@ public class GlobalView {
 		gp.add(readerList, 1, 0);
 		
 		TextField bckpFile = new TextField();
-		StackPane bckpSp = new StackPane(bckpFile, createWarning());
+		StackPane bckpSp = new StackPane(bckpFile, ViewUtils.createWarning());
 		bckpSp.getChildren().get(1).setVisible(false);
 		bckpFile.textProperty().addListener((observable, oldValue, newValue) -> {
-			bckpFileValidator(validator, bckpSp, newValue, true);
+			ViewUtils.bckpFileValidator(validator, bckpSp, newValue, true);
 		});
 		Button browseBckp = new Button(Messages.get("INIT_BROWSE"));
 		browseBckp.setOnAction(event -> {
@@ -884,7 +907,7 @@ public class GlobalView {
 		Label bckpLabel = new Label(Messages.get("INIT_BCKP_LABEL"));
 		PasswordField bckpPass = new PasswordField();
 		TextField bckpText = new TextField();
-		bindTextAndPassField(bckpText, bckpPass);
+		ViewUtils.bindTextAndPassField(bckpText, bckpPass);
 		ToggleButton bckpShow = new ToggleButton(Messages.get("INIT_SHOW"));
 		bckpShow.setOnAction(event -> {
 			gp.getChildren().remove(bckpShow.isSelected() ? bckpPass : bckpText);
@@ -893,13 +916,13 @@ public class GlobalView {
 		bckpShow.setMaxWidth(Double.MAX_VALUE);
 		CheckBox bckpCheck = new CheckBox(Messages.get("INIT_BCKP"));
 		bckpCheck.selectedProperty().addListener((observable, oldValue, newValue) -> {
-			bckpFileValidator(validator, bckpSp, bckpFile.getText(), newValue.booleanValue());
+			ViewUtils.bckpFileValidator(validator, bckpSp, bckpFile.getText(), newValue.booleanValue());
 		});
-		addDisableListener(bckpSp, bckpCheck.selectedProperty());
-		addDisableListener(browseBckp, bckpCheck.selectedProperty());
-		addDisableListener(bckpLabel, bckpCheck.selectedProperty());
-		addDisableListener(bckpPass, bckpCheck.selectedProperty());
-		addDisableListener(bckpShow, bckpCheck.selectedProperty());
+		ViewUtils.addDisableListener(bckpSp, bckpCheck.selectedProperty());
+		ViewUtils.addDisableListener(browseBckp, bckpCheck.selectedProperty());
+		ViewUtils.addDisableListener(bckpLabel, bckpCheck.selectedProperty());
+		ViewUtils.addDisableListener(bckpPass, bckpCheck.selectedProperty());
+		ViewUtils.addDisableListener(bckpShow, bckpCheck.selectedProperty());
 		gp.add(bckpCheck, 0, 1);
 		gp.add(bckpSp, 1, 1);
 		gp.add(browseBckp, 2, 1);
@@ -915,7 +938,7 @@ public class GlobalView {
 			else
 				validator.set(validator.get() & ~0x4);
 		});
-		bindTextAndPassField(userText, userPass);
+		ViewUtils.bindTextAndPassField(userText, userPass);
 		ToggleButton userShow = new ToggleButton(Messages.get("INIT_SHOW"));
 		userShow.setMaxWidth(Double.MAX_VALUE);
 		userShow.setOnAction(event -> {
@@ -997,7 +1020,7 @@ public class GlobalView {
 									it = mGroup.end();
 									while (it < tmp.length() && tmp.charAt(it) != '\n') {
 										mEntry.find(it);
-										appli.addEntry(Entry.NB_PROPERTIES, new Entry(mEntry.group("ID"), mEntry.group("USER")), false);
+										appli.addEntry(Entry.NB_PROPERTIES, new Entry(Controls.getAppli().getSelectedGroup(), mEntry.group("ID"), mEntry.group("USER")), false);
 										appli.setData(Entry.INDEX_PASSWORD, mEntry.group("PASS"), false);
 										appli.setData(Entry.INDEX_lAST_UPDATE, mEntry.group("LAST"), false);
 										appli.setData(Entry.INDEX_EXP_DATE, mEntry.group("EXP"), false);
@@ -1052,7 +1075,7 @@ public class GlobalView {
 		gp.add(readerList, 1, 0);
 		
 		TextField dir = new TextField();
-		StackPane spDir = new StackPane(dir, createWarning());
+		StackPane spDir = new StackPane(dir, ViewUtils.createWarning());
 		dir.setPrefWidth(250);
 		Button browse = new Button(Messages.get("MANAGE_BROWSE"));
 		browse.setOnAction(event -> {
@@ -1101,9 +1124,9 @@ public class GlobalView {
 		
 		PasswordField key1Pass = new PasswordField();
 		TextField key1Text = new TextField();
-		StackPane key1Sp = new StackPane(key1Pass, createWarning());
+		StackPane key1Sp = new StackPane(key1Pass, ViewUtils.createWarning());
 		key1Sp.getChildren().get(1).setVisible(false);
-		bindTextAndPassField(key1Text, key1Pass);
+		ViewUtils.bindTextAndPassField(key1Text, key1Pass);
 		key1Text.setText("40 41 42 43 44 45 46 47 48 49 4a 4b 4c 4d 4e 4f");
 		ToggleButton key1Show = new ToggleButton(Messages.get("MANAGE_SHOW"));
 		key1Show.setMaxWidth(Double.MAX_VALUE);
@@ -1114,10 +1137,10 @@ public class GlobalView {
 		key1ComboBox.getSelectionModel().select(0);
 		
 		key1ComboBox.getSelectionModel().selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(validator, key1Sp, key1ComboBox, key1Pass.getText(), 0x2);
+			ViewUtils.keyValidator(validator, key1Sp, key1ComboBox, key1Pass.getText(), 0x2);
 		});
 		key1Pass.textProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(validator, key1Sp, key1ComboBox, newValue, 0x2);
+			ViewUtils.keyValidator(validator, key1Sp, key1ComboBox, newValue, 0x2);
 		});
 		gp.add(new Label(Messages.get("MANAGE_KEY_1")), 0, 3);
 		gp.add(key1Sp, 1, 3);
@@ -1126,9 +1149,9 @@ public class GlobalView {
 		
 		PasswordField key2Pass = new PasswordField();
 		TextField key2Text = new TextField();
-		StackPane key2Sp = new StackPane(key2Pass, createWarning());
+		StackPane key2Sp = new StackPane(key2Pass, ViewUtils.createWarning());
 		key2Sp.getChildren().get(1).setVisible(false);
-		bindTextAndPassField(key2Text, key2Pass);
+		ViewUtils.bindTextAndPassField(key2Text, key2Pass);
 		ToggleButton key2Show = new ToggleButton(Messages.get("MANAGE_SHOW"));
 		key2Show.setOnAction(event -> key2Sp.getChildren().set(0, key2Show.isSelected() ? key2Text : key2Pass));
 		key2Show.setMaxWidth(Double.MAX_VALUE);
@@ -1137,22 +1160,22 @@ public class GlobalView {
 		key2ComboBox.getItems().addAll(Messages.get("MANAGE_PLAIN"), Messages.get("MANAGE_DERIVE"));
 		key2ComboBox.getSelectionModel().select(0);
 		key2ComboBox.getSelectionModel().selectedIndexProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
+			ViewUtils.keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
 		});
 		key2Pass.textProperty().addListener((observable, oldValue, newValue) -> {
-			keyValidator(validator, key2Sp, key2ComboBox, newValue, 0x4);
+			ViewUtils.keyValidator(validator, key2Sp, key2ComboBox, newValue, 0x4);
 		});
 		CheckBox key2Check = new CheckBox(Messages.get("MANAGE_KEY_2"));
 		key2Check.selectedProperty().addListener((observable, oldValue, newValue) -> {
 			key2Sp.getChildren().get(1).setVisible(newValue.booleanValue());
 			if (newValue)
-				keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
+				ViewUtils.keyValidator(validator, key2Sp, key2ComboBox, key2Pass.getText(), 0x4);
 			else
 				validator.set(validator.get() & ~0x4);
 		});
-		addDisableListener(key2Sp, key2Check.selectedProperty());
-		addDisableListener(key2Show, key2Check.selectedProperty());
-		addDisableListener(key2ComboBox, key2Check.selectedProperty());
+		ViewUtils.addDisableListener(key2Sp, key2Check.selectedProperty());
+		ViewUtils.addDisableListener(key2Show, key2Check.selectedProperty());
+		ViewUtils.addDisableListener(key2ComboBox, key2Check.selectedProperty());
 		gp.add(key2Check, 0, 4);
 		gp.add(key2Sp, 1, 4);
 		gp.add(key2Show, 2, 4);
@@ -1254,10 +1277,10 @@ public class GlobalView {
 		    	SCP scp;
 				switch (scpVersion.getSelectionModel().getSelectedItem()) {
 					case "SCP02":
-						scp = new SCP02();
+						scp = new SCP02(readerList.getSelectionModel().getSelectedItem());
 						break;
 					case "SCP03":
-						scp = new SCP03();
+						scp = new SCP03(readerList.getSelectionModel().getSelectedItem());
 						break;
 					default:
 						//Should never happen
@@ -1427,9 +1450,17 @@ public class GlobalView {
 		gp.add(new Label(Messages.get("ABOUT_CLIENT")), 0, 1);
 		gp.add(new Label(Version.version), 1, 1);
 		gp.add(new Label(Messages.get("ABOUT_BUG")), 0, 2);
-		gp.add(l = new Label("contact.smartthings@gmail.com"), 1, 2);
+		gp.add(l = new Label("contact.securingdata@gmail.com"), 1, 2);
 		l.setTextFill(Color.BLUE);
-		dialog.getDialogPane().setContent(gp);
+		
+		ImageView iv = new ImageView(Images.SMARTSAFE);
+		iv.setPreserveRatio(true);
+		iv.setFitWidth(260);
+		
+		BorderPane bp = new BorderPane(gp);
+		bp.setTop(iv);
+		
+		dialog.getDialogPane().setContent(bp);
 		
 		dialog.showAndWait();
 	}

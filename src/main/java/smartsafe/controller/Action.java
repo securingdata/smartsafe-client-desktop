@@ -1,4 +1,4 @@
-package smartsafe.view;
+package smartsafe.controller;
 
 import java.util.List;
 

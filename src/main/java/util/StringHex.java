@@ -92,6 +92,9 @@ public class StringHex {
 	public static String shortToHex(short s) {
 		return byteToHex((byte) ((s >> 8) & 0xFF)) + byteToHex((byte) (s & 0xFF));
 	}
+	public static String intToHex(int i) {
+		return shortToHex((short) ((i >> 16) & 0xFFFF)) + shortToHex((short) (i & 0xFFFF)); 
+	}
 	
 	public String toString() {
 		String h = "";
