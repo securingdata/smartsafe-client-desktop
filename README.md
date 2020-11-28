@@ -6,6 +6,8 @@ This password manager is split in several repositories: see the corresponding re
 The SmartSafe Client part consists in a rich application that allows a user to manage the Java Card smart card (for instance loading the Server application) and to use the password manager (create new entries, view entries, change the password, etc.).
 
 ![Screenshot1](images/screenshot1.png "Screenshot1")
+![Screenshot2](images/screenshot2.png "Screenshot2")
+![Screenshot3](images/screenshot3.png "Screenshot3")
 
 ## Security assumptions
 The main security relies on the Java Card smart card that stores the sensitive data. The SmartSafe is assumed to be run on a trusted environment. Therefore attacks on the client implementation are not considered as relevant.
