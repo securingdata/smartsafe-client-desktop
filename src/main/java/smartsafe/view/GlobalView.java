@@ -1426,7 +1426,7 @@ public class GlobalView {
 		dialog.showAndWait();
 	
 	}
-	
+
 	public static void aboutDialog() {
 		Dialog<String> dialog = new Dialog<>();
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
@@ -1461,7 +1461,6 @@ public class GlobalView {
 		bp.setTop(iv);
 		
 		dialog.getDialogPane().setContent(bp);
-		
 		dialog.showAndWait();
 	}
 }

@@ -24,6 +24,10 @@ public interface Prefs {
 	public String KEY_READER = "reader";
 	public String DEFAULT_READER = "";
 	
+	public String KEY_TIMER = "timer";
+	public String DEFAULT_TIMER = "300";
+	
+	
 	static Locale prefToLocale() {
 		switch(myPrefs.get(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE)) {
 			default:

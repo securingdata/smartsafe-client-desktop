@@ -25,6 +25,7 @@ import smartsafe.Messages;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
 import smartsafe.view.GlobalView;
+import smartsafe.view.Help;
 import smartsafe.view.Images;
 import smartsafe.view.ViewUtils;
 
@@ -57,12 +58,14 @@ public class Controls {
 		ViewUtils.cardConnected.set(appli != null);
 		connection.setSelected(appli != null);
 		if (appli != null) {
+			ConnectionTimer.start();
 			connection.setGraphic(new ImageView(Images.DISCONNECT));
 			connection.setTooltip(new Tooltip(Controls.DISCONNECT));
 			connectionMenu.setGraphic(new ImageView(Images.DISCONNECT));
 			connectionMenu.setText(Controls.DISCONNECT);
 		}
 		else {
+			ConnectionTimer.stop();
 			connection.setGraphic(new ImageView(Images.CONNECT));
 			connection.setTooltip(new Tooltip(CONNECT));
 			connectionMenu.setGraphic(new ImageView(Images.CONNECT));
@@ -120,6 +123,7 @@ public class Controls {
 	public static final String EDIT = Messages.get("EDIT");
 	public static final Action ACTION_EDIT = new Action(EDIT, false, null, params -> {
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
 		GlobalView.entryDialog(e);
@@ -148,6 +152,7 @@ public class Controls {
 	public static final Action ACTION_COPY_PASS = new Action(COPY_PASS, false, null, params -> {
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
 		clipboard.setContents(new StringSelection(e.getPassword().get()), null);
@@ -164,7 +169,7 @@ public class Controls {
 	
 	public static final String HELP = Messages.get("HELP");
 	public static final Action ACTION_HELP = new Action(HELP, false, null, params -> {
-		//TODO
+		Help.helpDialog();
 	});
 	
 	public static final String PROPERTIES = Messages.get("PROPERTIES");
