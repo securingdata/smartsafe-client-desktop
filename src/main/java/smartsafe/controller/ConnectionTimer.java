@@ -16,8 +16,8 @@ public class ConnectionTimer {
 			stop = false;
 			while(!stop && remainingTime > 0) {
 				try {
+					Thread.sleep(Math.min(10000, remainingTime));
 					remainingTime -= 10;
-					Thread.sleep(10000);
 				} catch (InterruptedException e) {}
 			}
 			if (!stop) {
@@ -31,12 +31,16 @@ public class ConnectionTimer {
 	public static void start() {
 		if (timer != null)
 			stop();
-		timer = new Timer(Integer.parseInt(Prefs.myPrefs.get(Prefs.KEY_TIMER, Prefs.DEFAULT_TIMER)));
-		timer.start();
+		int time = Integer.parseInt(Prefs.get(Prefs.KEY_TIMER));
+		if (time != 0) {
+			timer = new Timer(time);
+			timer.start();
+		}
 	}
 	public static void stop() {
 		if (timer != null) {
 			timer.stop = true;
+			timer = null;
 		}
 	}
 }

@@ -17,9 +17,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
 
+import smartsafe.Prefs;
+
 
 public final class ResourcesManager {
-	//private static URLClassLoader loader2 = (URLClassLoader)ResourcesManager.class.getClassLoader();
 	private static ClassLoader loader = Thread.currentThread().getContextClassLoader();
 	private static Map<String, Path> customLoaders = new HashMap<>();
 	private ResourcesManager() {}
@@ -45,7 +46,6 @@ public final class ResourcesManager {
 	}
 	
 	public static URL getURLFile(String name) {
-		//return loader.findResource(name);
 		return loader.getResource(name);
 	}
 	public static InputStream getResourceAsStream(String name) {
@@ -95,16 +95,7 @@ public final class ResourcesManager {
 			}
 			file.toFile().deleteOnExit();
 			
-			
-			try (InputStream is = loader.getResourceAsStream(name); OutputStream os = new FileOutputStream(file.toFile())) {
-				int read;
-				byte[] bytes = new byte[1024];
-				while ((read = is.read(bytes)) > 0) {
-					os.write(bytes, 0, read);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			copy(name, file);
 			return file;
 		}
 		else {
@@ -114,5 +105,79 @@ public final class ResourcesManager {
 				return null;
 			}
 		}
+	}
+	public static Path initHtmlDirectory() {
+		URL url = getURLFile("html/");
+		if (url == null)
+			return null;
+		
+		//Creating root directory
+		Path dir;
+		try {
+			dir = Files.createTempDirectory(null);
+		} catch (IOException e) {
+			return null;
+		}
+		recursiveDeleteOnExit(dir);
+		
+		//Loading global static
+		Path staticDir;
+		try {
+			staticDir = Files.createDirectory(Paths.get(dir.toString(), "static"));
+			copyStaticDir("html/static/", "", staticDir.toString());
+		} catch (IOException e) {
+			return null;
+		}
+		
+		//Creating directory of current locale
+		try {
+			String tmp = Prefs.get(Prefs.KEY_LANGUAGE).substring(0, 2).toLowerCase();
+			Path locDir =  Files.createDirectory(Paths.get(dir.toString(), tmp));
+			Files.createDirectory(Paths.get(locDir.toString(), "static"));
+			return locDir;
+		} catch (IOException e) {
+			return null;
+		}
+	}
+	public static String loadHtmlPage(Path htmlDir, String name) {
+		try {
+			String nameH = name + ".html";
+			Path page = Paths.get(htmlDir.toString(), nameH);
+			if (page.toFile().exists())
+				return page.toUri().toURL().toExternalForm();
+			
+			String locDir = Prefs.get(Prefs.KEY_LANGUAGE).substring(0, 2).toLowerCase() + "/";
+			copy("html/" + locDir + nameH, page);
+			copyStaticDir("html/" + locDir + "static/", name, Paths.get(htmlDir.toString(), "static").toString());
+			return page.toUri().toURL().toExternalForm();
+		} catch (MalformedURLException e) {
+			return null;
+		}
+	}
+	
+	private static void copyStaticDir(String src, String pre, String dst) {
+		copyStaticDir(src, pre, dst, ".css");
+		copyStaticDir(src, pre, dst, ".png");
+	}
+	private static void copyStaticDir(String src, String pre, String dst, String extension) {
+		for (int i = 0; ;i++ ) {
+			if (!copy(src + pre + i + extension, Paths.get(dst, pre + i + extension)))
+				return;
+		}
+	}
+	private static boolean copy(String src, Path dst) {
+		if (getURLFile(src) == null)
+			return false;
+		try (InputStream is = loader.getResourceAsStream(src); OutputStream os = new FileOutputStream(dst.toFile())) {
+			int read;
+			byte[] bytes = new byte[1024];
+			while ((read = is.read(bytes)) > 0) {
+				os.write(bytes, 0, read);
+			}
+		} catch (IOException e) {
+			return false;
+		}
+		dst.toFile().deleteOnExit();
+		return true;
 	}
 }

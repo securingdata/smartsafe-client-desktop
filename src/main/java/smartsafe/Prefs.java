@@ -38,10 +38,39 @@ public interface Prefs {
 		}
 	}
 	static StringHex getPckgAID() {
-		return new StringHex(Prefs.myPrefs.get(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID).getBytes());
+		return new StringHex(get(Prefs.KEY_PCKG_AID).getBytes());
 	}
 	static StringHex getAppAID() {
-		return new StringHex((Prefs.myPrefs.get(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID) + 
-				  Prefs.myPrefs.get(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX)).getBytes());
+		return new StringHex((get(Prefs.KEY_PCKG_AID) + get(Prefs.KEY_APP_AID_SUFFIX)).getBytes());
+	}
+	
+	static String get(String key) {
+		String def = null;
+		switch (key) {
+			case KEY_LANGUAGE:
+				def = DEFAULT_LANGUAGE;
+				break;
+			case KEY_CHARS:
+				def = DEFAULT_CHARS;
+				break;
+			case KEY_PCKG_AID:
+				def = DEFAULT_PCKG_AID;
+				break;
+			case KEY_APP_AID_SUFFIX:
+				def = DEFAULT_APP_AID_SUFFIX;
+				break;
+			case KEY_READER:
+				def = DEFAULT_READER;
+				break;
+			case KEY_TIMER:
+				def = DEFAULT_TIMER;
+				break;
+			default:
+				return null;
+		}
+		return myPrefs.get(key, def);
+	}
+	static void put(String key, String value) {
+		myPrefs.put(key, value);
 	}
 }

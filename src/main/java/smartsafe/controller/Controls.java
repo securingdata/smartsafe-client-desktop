@@ -58,7 +58,6 @@ public class Controls {
 		ViewUtils.cardConnected.set(appli != null);
 		connection.setSelected(appli != null);
 		if (appli != null) {
-			ConnectionTimer.start();
 			connection.setGraphic(new ImageView(Images.DISCONNECT));
 			connection.setTooltip(new Tooltip(Controls.DISCONNECT));
 			connectionMenu.setGraphic(new ImageView(Images.DISCONNECT));

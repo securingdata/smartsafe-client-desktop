@@ -14,6 +14,7 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.Priority;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import smartsafe.controller.ConnectionTimer;
 import smartsafe.view.GlobalView;
 
 public class LaunchView extends Application {
@@ -28,6 +29,7 @@ public class LaunchView extends Application {
 			primaryStage.setTitle("SmartSafe");
 			primaryStage.setScene(scene);
 			primaryStage.show();
+			primaryStage.setOnCloseRequest(event -> ConnectionTimer.stop());
 		} catch (Throwable th) {
 			th.printStackTrace();
 			createExceptionDialog(th);

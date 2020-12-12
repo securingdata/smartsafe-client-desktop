@@ -61,6 +61,7 @@ import javafx.scene.control.PasswordField;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.SeparatorMenuItem;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
@@ -93,10 +94,12 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.StringConverter;
 import smartsafe.Messages;
 import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
+import smartsafe.controller.ConnectionTimer;
 import smartsafe.controller.Controls;
 import smartsafe.model.Entry;
 import util.Crypto;
@@ -195,6 +198,10 @@ public class GlobalView {
                 else {
                 	groupsView.requestFocus();
                 }
+            }
+            else if (event.getCode() == KeyCode.ENTER || event.getCode() == KeyCode.DOWN) {
+            	table.requestFocus();
+            	table.getSelectionModel().select(0);
             }
         });
 		searchField.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -330,7 +337,7 @@ public class GlobalView {
 		readerList.getItems().addAll(terminals);
 		readerList.getSelectionModel().select(0);
 		for (int i = 0; i < terminals.size(); i++) {
-			if (terminals.get(i).getName() == Prefs.myPrefs.get(Prefs.KEY_READER, Prefs.DEFAULT_READER))
+			if (terminals.get(i).getName() == Prefs.get(Prefs.KEY_READER))
 				readerList.getSelectionModel().select(i);
 		}
 		return readerList;
@@ -369,13 +376,31 @@ public class GlobalView {
 			if (dialogButton == ok) {
 				Controls.createAppli(readerList.getValue(), password.getText());
 				if (Controls.getAppli() != null) {
-					Prefs.myPrefs.put(Prefs.KEY_READER, readerList.getValue().toString());
+					Prefs.put(Prefs.KEY_READER, readerList.getValue().toString());
+					
+					Dialog<String> d = new Dialog<>();
+					((Stage) d.getDialogPane().getScene().getWindow()).getIcons().add(Images.CONNECT);
+					d.setTitle(Messages.get("CONNECT_LOADING"));
+					d.setHeaderText(null);
+					ProgressBarWithText pb = new ProgressBarWithText();
+					pb.setMinWidth(300);
+					d.getDialogPane().setContent(pb);
+					d.show();
 					
 					new Thread((Runnable) () -> {
+						double delta = 1d / Controls.getAppli().getGroups().size();
 						for (String group : Controls.getAppli().getGroups()) {
 							Controls.getAppli().getEntries(group, true);
+							Platform.runLater(() -> pb.addProgress(delta));
+						}
+						Platform.runLater(() -> {
+							d.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);//Hack to allow closing
+							d.close();
+						});
+						for (String group : Controls.getAppli().getGroups()) {
 							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
 						}
+						ConnectionTimer.start();
 					}).start();
 				}
 			}
@@ -572,7 +597,7 @@ public class GlobalView {
 		
 		Button generate = new Button(Messages.get("RANDOM_GENERATE"));
 		Spinner<Integer> passwordSize = new Spinner<>(1, 128, 16);
-		TextField specialValues = new TextField(Prefs.myPrefs.get(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS));
+		TextField specialValues = new TextField(Prefs.get(Prefs.KEY_CHARS));
 		final CheckBox num, alpha, upper, special;
 		
 		gp.add(new Label(Messages.get("RANDOM_SIZE")), 0, 0);
@@ -1358,10 +1383,6 @@ public class GlobalView {
 	}
 	
 	public static void preferencesDialog() {
-		//AID
-		//language
-		//characters
-
 		Dialog<String> dialog = new Dialog<>();
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.PREFERENCES);
@@ -1376,23 +1397,40 @@ public class GlobalView {
 		ComboBox<String> language = new ComboBox<>();
 		language.setMaxWidth(Double.MAX_VALUE);
 		language.getItems().addAll(Prefs.LANGUAGES_LIST);
-		language.getSelectionModel().select(Prefs.myPrefs.get(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE));
+		language.getSelectionModel().select(Prefs.get(Prefs.KEY_LANGUAGE));
 		
-		TextField chars = new TextField(Prefs.myPrefs.get(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS));
+		TextField chars = new TextField(Prefs.get(Prefs.KEY_CHARS));
 		chars.setPrefWidth(250);
 		
-		TextField pckgAid = new TextField(Prefs.myPrefs.get(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID));
+		TextField pckgAid = new TextField(Prefs.get(Prefs.KEY_PCKG_AID));
 		pckgAid.textProperty().addListener((observable, oldValue, newValue) -> {
 			if (newValue.length() > 10)
 				pckgAid.setText(newValue.substring(0, 10));
 		});
 		
-		TextField appAidSuffix = new TextField(Prefs.myPrefs.get(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX));
+		TextField appAidSuffix = new TextField(Prefs.get(Prefs.KEY_APP_AID_SUFFIX));
 		appAidSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
 			if (newValue.length() > 6)
 				appAidSuffix.setText(newValue.substring(0, 10));
 		});
 		
+		Spinner<Integer> timer = new Spinner<>(0, Integer.MAX_VALUE, Integer.valueOf(Prefs.get(Prefs.KEY_TIMER)));
+		timer.setEditable(true);
+		timer.setMaxWidth(Double.MAX_VALUE);
+		timer.focusedProperty().addListener((s, ov, nv) -> {
+		    if (nv) return;
+		    String text = timer.getEditor().getText();
+		    if (text == null || text.length() == 0)
+		    	return;
+		    SpinnerValueFactory<Integer> valueFactory = timer.getValueFactory();
+		    if (valueFactory != null) {
+		        StringConverter<Integer> converter = valueFactory.getConverter();
+		        if (converter != null) {
+		        	Integer value = converter.fromString(text);
+		            valueFactory.setValue(value);
+		        }
+		    }
+		});
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
@@ -1405,22 +1443,27 @@ public class GlobalView {
 		gp.add(pckgAid, 1, 2);
 		gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 3);
 		gp.add(appAidSuffix, 1, 3);
+		gp.add(new Label(Messages.get("PREFS_TIMER")), 0, 4);
+		gp.add(timer, 1, 4);
 
 		dialog.getDialogPane().setContent(gp);
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				Prefs.myPrefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
-				Prefs.myPrefs.put(Prefs.KEY_CHARS, chars.getText());
-				Prefs.myPrefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
-				Prefs.myPrefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
+				Prefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
+				Prefs.put(Prefs.KEY_CHARS, chars.getText());
+				Prefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
+				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
+				Prefs.put(Prefs.KEY_TIMER, timer.getValue().toString());
 			}
 			else if (dialogButton == reset) {
-				Prefs.myPrefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
-				Prefs.myPrefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
-				Prefs.myPrefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
-				Prefs.myPrefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
+				Prefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
+				Prefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
+				Prefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
+				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
+				Prefs.put(Prefs.KEY_TIMER, Prefs.DEFAULT_TIMER);
 			}
+			Messages.reloadMessages();
 			return null;
 		});
 		dialog.showAndWait();
