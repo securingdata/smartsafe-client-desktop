@@ -11,6 +11,7 @@ import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -205,18 +206,38 @@ public class GlobalView {
             }
         });
 		searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+			
 			Controls.selectGroup(null);
 			if (newValue.isEmpty())
 				return;
+			newValue = normalise(newValue);
 			for (String group : Controls.getAppli().getGroups()) {
 				for (Entry e : Controls.getAppli().getEntries(group, true)) {
-					if (e.getIdentifier().get().toLowerCase().contains(newValue))
+					if (normalise(e.getIdentifier().get()).contains(newValue))
 						GlobalView.getTableEntries().getItems().add(e);
+				}
+			}
+			
+			//Search with typo
+			for (int i = 0; i <newValue.length(); i++) {
+				for (String group : Controls.getAppli().getGroups()) {
+					for (Entry e : Controls.getAppli().getEntries(group, true)) {
+						if (!GlobalView.getTableEntries().getItems().contains(e)) {
+							String regex = ".*" + newValue.substring(0, i) + "." + newValue.substring(i + 1) + ".*";
+							if (normalise(e.getIdentifier().get()).matches(regex))
+								GlobalView.getTableEntries().getItems().add(e);
+						}
+					}
 				}
 			}
 		});
 		
 		return superRoot;
+	}
+	private static String normalise(String s) {
+		s = Normalizer.normalize(s, Normalizer.Form.NFD);
+	    s = s.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
+	    return s.toLowerCase();
 	}
 	public static TreeView<String> getGroupsView() {
 		return groupsView;
@@ -990,7 +1011,7 @@ public class GlobalView {
 				try {
 					appli.coldReset();
 					APDUResponse resp = appli.select();
-					if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+					if (resp.getStatusWord() != SmartSafeAppli.SW_NO_ERROR) {
 						pb.setProgress(1, Messages.get("INIT_PB_1"));
 						pb.setTextStyle(true);
 					}
@@ -1036,6 +1057,7 @@ public class GlobalView {
 								Matcher mGroup = Pattern.compile("(?<GROUP>.+)(?<NB>[0-9A-F]{2})\n").matcher(tmp);
 								Matcher mEntry = Pattern.compile("(?<ID>.+)\t(?<USER>.+)\t(?<PASS>.+)\t(?<LAST>.+)\t(?<EXP>.*)\t(?<URL>.*)\t(?<NOTE>.*)\t\n?").matcher(tmp);
 								appli.authenticate(userText.getText());
+								appli.getGroups();
 								pb.setProgress(0.1, Messages.get("INIT_PB_9"));
 								int it = 0;
 								double delta = 0.8 / tmp.length();
@@ -1045,7 +1067,7 @@ public class GlobalView {
 									it = mGroup.end();
 									while (it < tmp.length() && tmp.charAt(it) != '\n') {
 										mEntry.find(it);
-										appli.addEntry(Entry.NB_PROPERTIES, new Entry(Controls.getAppli().getSelectedGroup(), mEntry.group("ID"), mEntry.group("USER")), false);
+										appli.addEntry(Entry.NB_PROPERTIES, new Entry(appli.getSelectedGroup(), mEntry.group("ID"), mEntry.group("USER")), false);
 										appli.setData(Entry.INDEX_PASSWORD, mEntry.group("PASS"), false);
 										appli.setData(Entry.INDEX_lAST_UPDATE, mEntry.group("LAST"), false);
 										appli.setData(Entry.INDEX_EXP_DATE, mEntry.group("EXP"), false);
@@ -1137,7 +1159,7 @@ public class GlobalView {
 		keyDerivation.getItems().addAll("No derivation", "EMVCPS v1.1", "VISA", "VISA2");
 		keyDerivation.getSelectionModel().select(0);
 		ComboBox<String> authMode = new ComboBox<>();
-		authMode.getItems().addAll("Auth", "C-MAC");//, "C-ENC"
+		authMode.getItems().addAll("Auth", "C-MAC", "C-ENC");//, "C-ENC"
 		authMode.getSelectionModel().select(1);
 		ComboBox<String> jcVersion = new ComboBox<>();
 		jcVersion.getItems().addAll("JC 2.2.1", "JC 2.2.2", "JC 3.0.2", "JC 3.0.4", "JC 3.0.5");

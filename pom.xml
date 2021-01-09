@@ -7,7 +7,7 @@
 	<groupId>jean-dubreuil</groupId>
 	<artifactId>SmartSafeClient</artifactId>
 	<packaging>jar</packaging>
-	<version>0.9.2</version>
+	<version>0.9.3</version>
 	<name>SmartSafeClient</name>
 
 	<build>

@@ -7,6 +7,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.bouncycastle.crypto.BufferedBlockCipher;
 import org.bouncycastle.crypto.digests.SHA512Digest;
 import org.bouncycastle.crypto.engines.AESEngine;
 import org.bouncycastle.crypto.macs.CMac;
@@ -35,17 +36,31 @@ public class Crypto {
 		cipher.processBlock(msg.toBytes(), 0, res, 0);
 		return new StringHex(res);
 	}
-	public static StringHex aesCBC(Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
-		//Padding
-		msg = StringHex.concatenate(msg, new StringHex("80"));
-		while (msg.size() % 16 != 0)
-			msg = StringHex.concatenate(msg, new StringHex("00"));
+	public static StringHex aesCBC(boolean encrypting, Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
+		if (encrypting) {
+			//Padding
+			msg = StringHex.concatenate(msg, new StringHex("80"));
+			while (msg.size() % 16 != 0)
+				msg = StringHex.concatenate(msg, new StringHex("00"));
+		}
 		
 		byte[] res = new byte[msg.size()];
-		CBCBlockCipher cipher = new CBCBlockCipher(new AESEngine());
-		cipher.init(true, new ParametersWithIV(new KeyParameter(key.getEncoded()), iv.toBytes()));
-		cipher.processBlock(msg.toBytes(), 0, res, 0);
-		return new StringHex(res);
+		BufferedBlockCipher cipher = new BufferedBlockCipher(new CBCBlockCipher(new AESEngine()));
+		cipher.init(encrypting, new ParametersWithIV(new KeyParameter(key.getEncoded()), iv.toBytes()));
+		cipher.processBytes(msg.toBytes(), 0, msg.size(), res, 0);
+		
+		StringHex result = new StringHex(res);
+		
+		if (!encrypting) {
+			//Remove padding
+			int i;
+			for (i = result.size() - 1; i > 0 && result.get(i) == 0; i--);
+			if (result.get(i) != (byte) 0x80)
+				throw new GeneralSecurityException("Incorrect padding");
+			result = result.get(0, i);
+		}
+		
+		return result;
 	}
 	public static StringHex aesCMAC(Key key, StringHex msg, StringHex iv) throws GeneralSecurityException {
 		if (iv != null)

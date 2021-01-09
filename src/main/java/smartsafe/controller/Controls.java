@@ -74,16 +74,19 @@ public class Controls {
 	
 	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
 	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.newGroupDialog();
 	});
 	
 	public static final String NEW_ENTRY = Messages.get("NEW_ENTRY");
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.entryDialog(null);
 	});
 	
 	public static final String DELETE = Messages.get("DELETE");
 	public static final Action ACTION_DELETE = new Action(DELETE, false, null, params -> {
+		ConnectionTimer.restart();
 		TreeItem<String> group = GlobalView.getGroupsView().getSelectionModel().getSelectedItem();
 		if (group != null) {
 			Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
@@ -94,11 +97,13 @@ public class Controls {
 	
 	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
 	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.changePINDialog();
 	});
 	
 	public static final String BACKUP = Messages.get("BACKUP");
 	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.backupDialog();
 	});
 	
@@ -121,6 +126,7 @@ public class Controls {
 	
 	public static final String EDIT = Messages.get("EDIT");
 	public static final Action ACTION_EDIT = new Action(EDIT, false, null, params -> {
+		ConnectionTimer.restart();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
@@ -132,6 +138,7 @@ public class Controls {
 	
 	public static final String GOTO = Messages.get("GOTO");
 	public static final Action ACTION_GOTO = new Action(GOTO, false, null, params -> {
+		ConnectionTimer.restart();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		try {
 			java.awt.Desktop.getDesktop().browse(new URI(e.getUrl().get()));
@@ -142,6 +149,7 @@ public class Controls {
 	
 	public static final String COPY_USER = Messages.get("COPY_USER");
 	public static final Action ACTION_COPY_USER = new Action(COPY_USER, false, null, params -> {
+		ConnectionTimer.restart();
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		clipboard.setContents(new StringSelection(e.getUserName().get()), null);
@@ -149,6 +157,7 @@ public class Controls {
 	
 	public static final String COPY_PASS = Messages.get("COPY_PASS");
 	public static final Action ACTION_COPY_PASS = new Action(COPY_PASS, false, null, params -> {
+		ConnectionTimer.restart();
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		appli.selectGroup(e.group);
@@ -160,6 +169,7 @@ public class Controls {
 	
 	public static final String SHOW_PASS = Messages.get("SHOW_PASS");
 	public static final Action ACTION_SHOW_PASS = new Action(SHOW_PASS, false, null, params -> {
+		ConnectionTimer.restart();
 		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
@@ -168,6 +178,7 @@ public class Controls {
 	
 	public static final String HELP = Messages.get("HELP");
 	public static final Action ACTION_HELP = new Action(HELP, false, null, params -> {
+		ConnectionTimer.restart();
 		Help.helpDialog();
 	});
 	
@@ -178,11 +189,13 @@ public class Controls {
 	
 	public static final String PREFERENCES = Messages.get("PREFERENCES");
 	public static final Action ACTION_PREFERENCES = new Action(PREFERENCES, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.preferencesDialog();
 	});
 	
 	public static final String ABOUT = Messages.get("ABOUT");
 	public static final Action ACTION_ABOUT = new Action(ABOUT, false, null, params -> {
+		ConnectionTimer.restart();
 		GlobalView.aboutDialog();
 	});
 	//================== END ACTIONS ==================\\

@@ -6,6 +6,9 @@ public class APDUResponse extends StringHex {
 	public APDUResponse(byte[] data) {
 		super(data);
 	}
+	public APDUResponse(String data) {
+		super(data);
+	}
 	
 	public short getStatusWord() {
 		return (short) (((data.get(data.size() - 2) << 8) & 0xFF00) | (data.get(data.size() - 1) & 0xFF));

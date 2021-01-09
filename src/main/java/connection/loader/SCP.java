@@ -4,6 +4,7 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.Random;
 
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
@@ -36,6 +37,7 @@ public abstract class SCP extends Application implements Bits {
 	
 	protected static final String SENC_NAME = "sEnc";
 	protected static final String SMAC_NAME = "sMac";
+	protected static final String RMAC_NAME = "rMac";
 	protected static final String KDEK_NAME = "kDek";
 	
 	protected HashMap<Short, Key> keySet;
@@ -45,7 +47,7 @@ public abstract class SCP extends Application implements Bits {
 	protected short currentKeys;
 	protected byte secLevel;
 	protected Key sEnc;
-	protected Key sMac;
+	protected Key sMac, rMac;
 	protected Key kDek;
 	protected StringHex macChaining;
 	protected StringHex hostChallenge;
@@ -62,7 +64,9 @@ public abstract class SCP extends Application implements Bits {
 		staticDerivation = StaticDerivation.NO_DERIVATION;
 		KEY_INFO_LEN = 2;
 		secLevel = SEC_LEVEL_NO;
-		hostChallenge = new StringHex("1122334455667788");
+		byte[] tmp = new byte[8];
+		new Random().nextBytes(tmp);
+		hostChallenge = new StringHex(tmp);
 	}
 	
 	public void setImplementationOption(byte implementation) {
@@ -117,6 +121,9 @@ public abstract class SCP extends Application implements Bits {
 				return;
 			case SMAC_NAME:
 				sMac = instanciateKey(keyValue);
+				return;
+			case RMAC_NAME:
+				rMac = instanciateKey(keyValue);
 				return;
 			case KDEK_NAME:
 				kDek = instanciateKey(keyValue);

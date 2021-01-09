@@ -18,12 +18,12 @@ public class SCP03 extends SCP {
 	private static final byte SMAC_DERIVATION_CSTE        = 0x06;
 	private static final byte RMAC_DERIVATION_CSTE        = 0x07;
 	
-	private int encryptionCounter;
+	private byte[] encryptionCounter;
 	
 	public SCP03(CardTerminal reader) {
 		super(reader);
 		KEY_INFO_LEN = 3;
-		encryptionCounter = 1;
+		encryptionCounter = new byte[16];
 	}
 	
 	
@@ -39,6 +39,9 @@ public class SCP03 extends SCP {
 			computeDerivationScheme(SENC_DERIVATION_CSTE);
 			setSessionKey(SENC_NAME, Crypto.aesCMAC(sEnc, derivationData, null));
 			
+			computeDerivationScheme(RMAC_DERIVATION_CSTE);
+			setSessionKey(RMAC_NAME, Crypto.aesCMAC(sMac, derivationData, null));
+			
 			computeDerivationScheme(SMAC_DERIVATION_CSTE);
 			setSessionKey(SMAC_NAME, Crypto.aesCMAC(sMac, derivationData, null));
 		} catch (GeneralSecurityException e) {
@@ -46,19 +49,14 @@ public class SCP03 extends SCP {
 		}
 	}
 	public void computeCryptograms() throws GPException {
-		StringHex computedCardCrypto;
 		try {
 			computeDerivationScheme(CARD_CRYPTO_DERIVATION_CSTE);
-			computedCardCrypto = Crypto.aesCMAC(sMac, derivationData, null).get(0, 8);
+			hostCrypto = Crypto.aesCMAC(sMac, derivationData, null).get(0, 8);
 			
 			computeDerivationScheme(HOST_CRYPTO_DERIVATION_CSTE);
 			hostCrypto = Crypto.aesCMAC(sMac, derivationData, null).get(0, 8);
-			
 		} catch (GeneralSecurityException e) {
 			throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
-		}
-		if (!cardCrypto.equals(computedCardCrypto)) {
-			throw new GPException("Computed card cryptogram mistmatches with received one.");
 		}
 	}
 	
@@ -92,14 +90,11 @@ public class SCP03 extends SCP {
 		if ((secLevel & SEC_LEVEL_C_MAC) != 0) {
 			if ((secLevel & SEC_LEVEL_C_DEC) != 0) {
 				//For IV
-				String tmp = StringHex.intToHex(encryptionCounter);
-				while (tmp.length() != 32)
-					tmp = "00" + tmp;
-				
+				incrementEncryptionCounter();
+				encryptionCounter[0] = 0;
 				try {
-					StringHex iv = Crypto.aes(sEnc, new StringHex(tmp));
-					data = Crypto.aesCBC(sEnc, new StringHex(data), iv).toString();
-					encryptionCounter++;
+					StringHex iv = Crypto.aes(sEnc, new StringHex(encryptionCounter));
+					data = Crypto.aesCBC(true, sEnc, new StringHex(data), iv).toString();
 				} catch (GeneralSecurityException e) {
 					throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
 				}
@@ -115,10 +110,44 @@ public class SCP03 extends SCP {
 				throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
 			}
 		}
-		
 		return new StringHex(data + macChaining.get(0, 8)).toString();
 	}
 	public APDUResponse unwrap(APDUResponse response) throws GPException {
+		if ((secLevel & SEC_LEVEL_R_MAC) != 0) {
+			if (response.getData().length == 0)
+				return response;
+			int size = response.size();
+			StringHex sw = response.get(size - 2, 2);
+			StringHex dataToMac = StringHex.concatenate(response.get(0, size - 10), sw);
+			try {
+				StringHex computedMac = Crypto.aesCMAC(rMac, dataToMac, macChaining);
+				if (!computedMac.get(0, 8).equals(response.get(size - 10, 8)))
+					throw new GPException("Incorrect R-MAC");
+			} catch (GeneralSecurityException e) {
+				throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
+			}
+			
+			if ((secLevel & SEC_LEVEL_R_ENC) != 0) {
+				try {
+					incrementEncryptionCounter();
+					encryptionCounter[0] = (byte) 0x80;
+					StringHex iv = Crypto.aes(sEnc, new StringHex(encryptionCounter));
+					StringHex newData = StringHex.concatenate(Crypto.aesCBC(false, sEnc, response.get(0, size - 10), iv), sw);
+					return new APDUResponse(newData.toString());
+				} catch (GeneralSecurityException e) {
+					throw new GPException("Crypto exception. " + e.getMessage(), e.getCause());
+				}
+			}
+			return new APDUResponse(dataToMac.toString());
+		}
 		return response;
+	}
+	
+	private void incrementEncryptionCounter() {
+		for (short s = (short) (encryptionCounter.length - 1); s >= 0; s--) {
+			encryptionCounter[s]++;
+			if(encryptionCounter[s] != 0)
+				return;
+		}
 	}
 }
