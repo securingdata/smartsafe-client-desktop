@@ -15,7 +15,9 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -211,33 +213,39 @@ public class GlobalView {
 			if (newValue.isEmpty())
 				return;
 			newValue = normalise(newValue);
+			Map<String, Entry> map = new HashMap<>();
 			for (String group : Controls.getAppli().getGroups()) {
 				for (Entry e : Controls.getAppli().getEntries(group, true)) {
-					if (normalise(e.getIdentifier().get()).contains(newValue))
+					String tmp = normalise(e.getIdentifier().get());
+					if (tmp.contains(newValue))
 						GlobalView.getTableEntries().getItems().add(e);
+					else
+						map.put(tmp, e);//for search with typo
 				}
 			}
 			
+			if (newValue.length() < 3)//Search with typo active when 3 or more chars in the search bar 
+				return;
+			
 			//Search with typo
-			for (int i = 0; i <newValue.length(); i++) {
-				for (String group : Controls.getAppli().getGroups()) {
-					for (Entry e : Controls.getAppli().getEntries(group, true)) {
-						if (!GlobalView.getTableEntries().getItems().contains(e)) {
-							String regex = ".*" + newValue.substring(0, i) + "." + newValue.substring(i + 1) + ".*";
-							if (normalise(e.getIdentifier().get()).matches(regex))
-								GlobalView.getTableEntries().getItems().add(e);
-						}
-					}
+			for (int i = 0; i < newValue.length(); i++) {
+				Map<String, Entry> newMap = new HashMap<>();
+				for (Map.Entry<String, Entry> mapEntry : map.entrySet()) {
+					String regex = ".*" + newValue.substring(0, i) + "." + newValue.substring(i + 1) + ".*";
+					if (mapEntry.getKey().matches(regex))
+						GlobalView.getTableEntries().getItems().add(mapEntry.getValue());
+					else
+						newMap.put(mapEntry.getKey(), mapEntry.getValue());
 				}
+				map = newMap;
 			}
 		});
 		
 		return superRoot;
 	}
 	private static String normalise(String s) {
-		s = Normalizer.normalize(s, Normalizer.Form.NFD);
-	    s = s.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
-	    return s.toLowerCase();
+		s = Normalizer.normalize(s.toLowerCase(), Normalizer.Form.NFD);
+	    return s.replaceAll("[\\p{InCombiningDiacriticalMarks}]", "");
 	}
 	public static TreeView<String> getGroupsView() {
 		return groupsView;
@@ -365,7 +373,7 @@ public class GlobalView {
 	}
 	
 	public static void connectDialog() {
-		Dialog<String> dialog = new Dialog<>();
+		Dialog<List<Object>> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.CONNECT, Messages.get("CONNECT_DIALOG"));
 		
 		GridPane gp = new GridPane();
@@ -399,25 +407,16 @@ public class GlobalView {
 				if (Controls.getAppli() != null) {
 					Prefs.put(Prefs.KEY_READER, readerList.getValue().toString());
 					
-					Dialog<String> d = new Dialog<>();
-					((Stage) d.getDialogPane().getScene().getWindow()).getIcons().add(Images.CONNECT);
-					d.setTitle(Messages.get("CONNECT_LOADING"));
-					d.setHeaderText(null);
-					ProgressBarWithText pb = new ProgressBarWithText();
-					pb.setMinWidth(300);
-					d.getDialogPane().setContent(pb);
-					d.show();
+					ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
+					d.showDialog();
 					
 					new Thread((Runnable) () -> {
 						double delta = 1d / Controls.getAppli().getGroups().size();
 						for (String group : Controls.getAppli().getGroups()) {
 							Controls.getAppli().getEntries(group, true);
-							Platform.runLater(() -> pb.addProgress(delta));
+							d.addProgress(delta);
 						}
-						Platform.runLater(() -> {
-							d.getDialogPane().getButtonTypes().add(ButtonType.CANCEL);//Hack to allow closing
-							d.close();
-						});
+						d.closeDialog();
 						for (String group : Controls.getAppli().getGroups()) {
 							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
 						}
@@ -700,8 +699,8 @@ public class GlobalView {
 		
 		dialog.showAndWait();
 	}
-	public static void deleteDialog(TreeItem<String> group, Entry entry) {
-		Dialog<String> dialog = new Dialog<>();
+	public static Object deleteDialog(TreeItem<String> group, Entry entry) {
+		Dialog<Object> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.DELETE, Messages.get("DELETE_DIALOG"));
 		
 		GridPane gp = new GridPane();
@@ -736,22 +735,22 @@ public class GlobalView {
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
 				if (tGroup.getSelectedToggle() == rGroup) {
-					Controls.getAppli().deleteGroup(group.getValue());
 					root.getChildren().remove(group);
 					groupsView.getSelectionModel().clearSelection();
+					return group.getValue();
 				}
 				else {
-					Controls.getAppli().deleteEntry(entry);
 					table.getItems().remove(entry);
+					return entry;
 				}
 			}
 			return null;
 		});
 		
-		dialog.showAndWait();
+		return dialog.showAndWait().get();
 	}
 	
-	public static void changePINDialog() {
+	public static String changePINDialog() {
 		Dialog<String> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.PIN, Messages.get("CHANGE_PIN_DIALOG"));
 		
@@ -783,12 +782,12 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				Controls.getAppli().changePin(password.getText());
+				return password.getText();
 			}
 			return null;
 		});
 		
-		dialog.showAndWait();
+		return dialog.showAndWait().get();
 	}
 	
 	public static void backupDialog() {
@@ -1492,7 +1491,7 @@ public class GlobalView {
 	
 	}
 
-	public static void aboutDialog() {
+	public static void aboutDialog(String version) {
 		Dialog<String> dialog = new Dialog<>();
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.ABOUT);
@@ -1507,10 +1506,7 @@ public class GlobalView {
 		gp.setHgap(5);
 		gp.setVgap(5);
 		gp.add(new Label(Messages.get("ABOUT_SERVER")), 0, 0);
-		if (Controls.getAppli() != null)
-			gp.add(new Label(Controls.getAppli().getVersion()), 1, 0);
-		else
-			gp.add(new Label(Messages.get("ABOUT_NO_CARD")), 1, 0);
+		gp.add(new Label(version == null ? Messages.get("ABOUT_NO_CARD") : version), 1, 0);
 
 		gp.add(new Label(Messages.get("ABOUT_CLIENT")), 0, 1);
 		gp.add(new Label(Version.version), 1, 1);

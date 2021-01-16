@@ -90,7 +90,13 @@ public class Controls {
 		TreeItem<String> group = GlobalView.getGroupsView().getSelectionModel().getSelectedItem();
 		if (group != null) {
 			Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
-			GlobalView.deleteDialog(group, e);
+			Object response = GlobalView.deleteDialog(group, e);
+			if (response != null) {
+				if (response instanceof String)
+					appli.deleteGroup((String) response);
+				else if (response instanceof Entry)
+					appli.deleteEntry((Entry) response);
+			}
 		}
 		
 	});
@@ -98,7 +104,9 @@ public class Controls {
 	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
 	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
 		ConnectionTimer.restart();
-		GlobalView.changePINDialog();
+		String pin = GlobalView.changePINDialog();
+		if (pin != null)
+			appli.changePin(pin);
 	});
 	
 	public static final String BACKUP = Messages.get("BACKUP");
@@ -196,7 +204,7 @@ public class Controls {
 	public static final String ABOUT = Messages.get("ABOUT");
 	public static final Action ACTION_ABOUT = new Action(ABOUT, false, null, params -> {
 		ConnectionTimer.restart();
-		GlobalView.aboutDialog();
+		GlobalView.aboutDialog(appli == null ? null : appli.getVersion());
 	});
 	//================== END ACTIONS ==================\\
 	
@@ -321,9 +329,6 @@ public class Controls {
 		return null;
 	}
 	
-	public static void handle(Action action) {
-		action.run();
-	}
 	public static void createAppli(CardTerminal reader, String password) {
 		appli = new SmartSafeAppli(reader);
 		try {
