@@ -1,33 +1,18 @@
 package smartsafe.view;
 
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import javax.smartcardio.CardTerminal;
 
 import compiler.Compiler;
@@ -41,6 +26,8 @@ import connection.loader.SCP;
 import connection.loader.SCP02;
 import connection.loader.SCP03;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -48,9 +35,10 @@ import javafx.beans.property.StringProperty;
 import javafx.event.ActionEvent;
 import javafx.geometry.Orientation;
 import javafx.scene.Node;
-import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonBar.ButtonData;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -60,6 +48,7 @@ import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.SeparatorMenuItem;
@@ -93,6 +82,7 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
+import javafx.scene.chart.*;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Modality;
@@ -102,13 +92,17 @@ import smartsafe.Messages;
 import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
-import smartsafe.controller.ConnectionTimer;
 import smartsafe.controller.Controls;
 import smartsafe.model.Entry;
 import util.Crypto;
+import util.ResourcesManager;
 import util.StringHex;
 
 public class GlobalView {
+	public static final List<ButtonBase> BUTTONS = new LinkedList<>();
+	public static final List<MenuItem> ITEMS = new LinkedList<>();
+	
+	private static Scene scene;
 	private static TreeView<String> groupsView;
 	private static TreeItem<String> root;
 	private static TableView<Entry> table;
@@ -117,7 +111,34 @@ public class GlobalView {
 	private static Label lastUpdate, expiresOn;
 	private static TextArea notes;
 	
-	public static Parent createView() {
+	private static ButtonBase getButton(String name) {
+		for (ButtonBase b : BUTTONS)
+			if (b.getTooltip().getText().equals(name))
+				return b;
+		return null;
+	}
+	private static MenuItem getMenuItem(String name) {
+		for (MenuItem mi : ITEMS)
+			if (mi.getText().equals(name))
+				return mi;
+		return null;
+	}
+	
+	public static void updateTheme() {
+		updateTheme(scene);
+	}
+	public static void updateTheme(Scene scene) {
+		String css = ResourcesManager.getURLFile("dark_theme.css").toString();
+		scene.getStylesheets().remove(css);
+		if (!Prefs.get(Prefs.KEY_THEME).equals(Prefs.DEFAULT_THEME)) {
+	        scene.getStylesheets().add(css);
+	    }
+	}
+	
+	public static Scene getScene() {
+		return scene;
+	}
+	public static Scene createView() {
 		SplitPane centerPane = new SplitPane();
 		centerPane.setOrientation(Orientation.VERTICAL);
 		centerPane.getItems().addAll(getTableEntries(), getDetails());
@@ -135,10 +156,10 @@ public class GlobalView {
 		mainPane.setDividerPosition(0, 0.2);
 		
 		ToolBar tb = new ToolBar();
-		tb.getItems().add(Controls.getButton(Controls.CONNECT));
-		tb.getItems().add(Controls.getButton(Controls.NEW_GROUP));
-		tb.getItems().add(Controls.getButton(Controls.NEW_ENTRY));
-		tb.getItems().add(Controls.getButton(Controls.DELETE));
+		tb.getItems().add(getButton(Controls.CONNECT));
+		tb.getItems().add(getButton(Controls.NEW_GROUP));
+		tb.getItems().add(getButton(Controls.NEW_ENTRY));
+		tb.getItems().add(getButton(Controls.DELETE));
 		HBox hb = new HBox();
 		HBox.setHgrow(hb, Priority.ALWAYS);
 		tb.getItems().add(hb);
@@ -151,31 +172,31 @@ public class GlobalView {
 		MenuBar mb = new MenuBar();
 		Menu m;
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_FILE")));
-		m.getItems().add(Controls.getMenuItem(Controls.CONNECT));
+		m.getItems().add(getMenuItem(Controls.CONNECT));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.NEW_GROUP));
-		m.getItems().add(Controls.getMenuItem(Controls.NEW_ENTRY));
-		m.getItems().add(Controls.getMenuItem(Controls.DELETE));
+		m.getItems().add(getMenuItem(Controls.NEW_GROUP));
+		m.getItems().add(getMenuItem(Controls.NEW_ENTRY));
+		m.getItems().add(getMenuItem(Controls.DELETE));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.UPDATE));
-		m.getItems().add(Controls.getMenuItem(Controls.INIT));
-		m.getItems().add(Controls.getMenuItem(Controls.CHANGE_PIN));
-		m.getItems().add(Controls.getMenuItem(Controls.BACKUP));
+		if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1]))
+			m.getItems().add(getMenuItem(Controls.UPDATE));
+		m.getItems().add(getMenuItem(Controls.CHANGE_PIN));
+		m.getItems().add(getMenuItem(Controls.BACKUP));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.EXIT));
+		m.getItems().add(getMenuItem(Controls.EXIT));
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_EDIT")));
-		m.getItems().add(Controls.getMenuItem(Controls.EDIT));
-		m.getItems().add(Controls.getMenuItem(Controls.GOTO));
-		m.getItems().add(Controls.getMenuItem(Controls.COPY_USER));
-		m.getItems().add(Controls.getMenuItem(Controls.COPY_PASS));
-		m.getItems().add(Controls.getMenuItem(Controls.SHOW_PASS));
+		m.getItems().add(getMenuItem(Controls.EDIT));
+		m.getItems().add(getMenuItem(Controls.GOTO));
+		m.getItems().add(getMenuItem(Controls.COPY_USER));
+		m.getItems().add(getMenuItem(Controls.COPY_PASS));
+		m.getItems().add(getMenuItem(Controls.SHOW_PASS));
 		mb.getMenus().add(m = new Menu(Messages.get("MENU_HELP")));
-		m.getItems().add(Controls.getMenuItem(Controls.HELP));
+		m.getItems().add(getMenuItem(Controls.HELP));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.PROPERTIES));
-		m.getItems().add(Controls.getMenuItem(Controls.PREFERENCES));
+		m.getItems().add(getMenuItem(Controls.PROPERTIES));
+		m.getItems().add(getMenuItem(Controls.PREFERENCES));
 		m.getItems().add(new SeparatorMenuItem());
-		m.getItems().add(Controls.getMenuItem(Controls.ABOUT));
+		m.getItems().add(getMenuItem(Controls.ABOUT));
 		
 		
 		BorderPane superRoot = new BorderPane(rootPane);
@@ -241,7 +262,9 @@ public class GlobalView {
 			}
 		});
 		
-		return superRoot;
+		scene = new Scene(superRoot, 700, 400);
+		updateTheme();
+		return scene;
 	}
 	private static String normalise(String s) {
 		s = Normalizer.normalize(s.toLowerCase(), Normalizer.Form.NFD);
@@ -345,6 +368,8 @@ public class GlobalView {
 		return dialog;
 	}
 	private static ButtonType initDialog(Dialog<?> dialog, Image image, String title) {
+		dialog.initOwner(scene.getWindow());
+		updateTheme(dialog.getDialogPane().getScene());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(image);
 		dialog.setTitle(title);
@@ -372,8 +397,8 @@ public class GlobalView {
 		return readerList;
 	}
 	
-	public static void connectDialog() {
-		Dialog<List<Object>> dialog = new Dialog<>();
+	public static Object[] connectDialog() {
+		Dialog<Object[]> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.CONNECT, Messages.get("CONNECT_DIALOG"));
 		
 		GridPane gp = new GridPane();
@@ -382,7 +407,7 @@ public class GlobalView {
 
 		ComboBox<CardTerminal> readerList = getTerminals();
 		if (readerList == null)
-			return;
+			return null;
 		PasswordField password = new PasswordField();
 		
 		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
@@ -403,34 +428,19 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				Controls.createAppli(readerList.getValue(), password.getText());
-				if (Controls.getAppli() != null) {
-					Prefs.put(Prefs.KEY_READER, readerList.getValue().toString());
-					
-					ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
-					d.showDialog();
-					
-					new Thread((Runnable) () -> {
-						double delta = 1d / Controls.getAppli().getGroups().size();
-						for (String group : Controls.getAppli().getGroups()) {
-							Controls.getAppli().getEntries(group, true);
-							d.addProgress(delta);
-						}
-						d.closeDialog();
-						for (String group : Controls.getAppli().getGroups()) {
-							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
-						}
-						ConnectionTimer.start();
-					}).start();
-				}
+				return new Object[] {readerList.getValue(), password.getText()};
 			}
 			return null;
 		});
 		
-		dialog.showAndWait();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
 	
-	public static void newGroupDialog() {
+	public static String newGroupDialog() {
 		Dialog<String> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.NEW_GROUP, Messages.get("GROUP_DIALOG"));
 		
@@ -439,12 +449,9 @@ public class GlobalView {
 		gp.setVgap(2);
 
 		TextField groupName = new TextField();
-		Spinner<Integer> groupSize = new Spinner<>(8, 255, 32);
 		
 		gp.add(new Label(Messages.get("GROUP_NAME")), 0, 0);
 		gp.add(groupName, 1, 0);
-		gp.add(new Label(Messages.get("GROUP_SIZE")), 0, 1);
-		gp.add(groupSize, 1, 1);
 		
 		
 		Node okButton = dialog.getDialogPane().lookupButton(ok);
@@ -458,26 +465,19 @@ public class GlobalView {
 		Platform.runLater(() -> groupName.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-			if (dialogButton == ok) {
-				short sw = Controls.getAppli().createGroup(groupSize.getValue().byteValue(), groupName.getText(), true).getStatusWord();
-				if (sw == SmartSafeAppli.SW_NO_ERROR) {
-					GlobalView.getGroups().getChildren().add(new TreeItem<String>(groupName.getText()));
-				}
-				else if (sw == SmartSafeAppli.SW_FILE_FULL) {
-					errorDialog(Messages.get("GROUP_ERROR_1"));
-				}
-				else {
-					errorDialog(Messages.get("GROUP_ERROR_2") + new StringHex(sw).toString());
-				}
-			}
+			if (dialogButton == ok)
+				return groupName.getText();
 			return null;
 		});
 		
-		dialog.showAndWait();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
-	public static void entryDialog(Entry selectedEntry) {
-		final String oldPass;
-		Dialog<String> dialog = new Dialog<>();
+	public static String[] entryDialog(final Entry selectedEntry) {
+		Dialog<String[]> dialog = new Dialog<>();
 		ButtonType ok;
 		if (selectedEntry == null)
 			ok = initDialog(dialog, Images.NEW_ENTRY, Messages.get("NEW_ENTRY_DIALOG"));
@@ -536,7 +536,6 @@ public class GlobalView {
 		gp.add(notes, 1, 5);
 		
 		if (selectedEntry != null) {
-			oldPass = selectedEntry.getPassword().get();
 			identifier.setDisable(true);
 			userName.setDisable(true);
 			identifier.setText(selectedEntry.getIdentifier().get());
@@ -547,8 +546,6 @@ public class GlobalView {
 			url.setText(selectedEntry.getUrl().get());
 			notes.setText(selectedEntry.getNotes().get());
 		}
-		else
-			oldPass = null;
 		
 		Node okButton = dialog.getDialogPane().lookupButton(ok);
 		okButton.setDisable(selectedEntry == null);
@@ -575,37 +572,17 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				Entry entry = selectedEntry;
-				if (entry == null) {
-					entry = new Entry(Controls.getAppli().getSelectedGroup(), identifier.getText(), userName.getText());
-					short sw = Controls.getAppli().addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
-					if (sw == SmartSafeAppli.SW_FILE_FULL) {
-						errorDialog(Messages.get("ENTRY_ERROR_1"));
-						return null;
-					}
-					else if (sw != SmartSafeAppli.SW_NO_ERROR) {
-						errorDialog(Messages.get("ENTRY_ERROR_2") + new StringHex(sw).toString());
-						return null;
-					}
-					table.getItems().add(entry);
-				}
-				
-				if ((selectedEntry == null && !password.getText().isEmpty()) ||
-					(selectedEntry != null && !password.getText().equals(oldPass))) {
-					Controls.getAppli().setData(Entry.INDEX_PASSWORD, password.getText(), true);
-					Controls.getAppli().setData(Entry.INDEX_lAST_UPDATE, LocalDate.now().toString(), true);
-				}
-				if (expires.getValue() != null) {
-					Controls.getAppli().setData(Entry.INDEX_EXP_DATE, expires.getValue().toString(), true);
-				}
-				Controls.getAppli().setData(Entry.INDEX_URL, url.getText(), true);
-				Controls.getAppli().setData(Entry.INDEX_NOTES, notes.getText(), true);
-				entry.maskPassword();
+				return new String[] {identifier.getText(), userName.getText(), password.getText(), LocalDate.now().toString(),
+						expires.getValue() != null ? expires.getValue().toString() : null, url.getText(), notes.getText()};
 			}
 			return null;
 		});
 		
-		dialog.showAndWait();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
 	public static void randomDialog(PasswordField pf) {
 		Dialog<String> dialog = new Dialog<>();
@@ -618,6 +595,7 @@ public class GlobalView {
 		Button generate = new Button(Messages.get("RANDOM_GENERATE"));
 		Spinner<Integer> passwordSize = new Spinner<>(1, 128, 16);
 		TextField specialValues = new TextField(Prefs.get(Prefs.KEY_CHARS));
+		Color color = Prefs.get(Prefs.KEY_THEME).equals(Prefs.DEFAULT_THEME) ? Color.GRAY : Color.WHITESMOKE;
 		final CheckBox num, alpha, upper, special;
 		
 		gp.add(new Label(Messages.get("RANDOM_SIZE")), 0, 0);
@@ -634,10 +612,10 @@ public class GlobalView {
 		
 		BorderPane generationPane = new BorderPane();
 		Label labelPass = new Label("");
-		labelPass.setTextFill(Color.GRAY);
+		labelPass.setTextFill(color);
 		BorderPane labelPane = new BorderPane();
 		labelPane.setCenter(labelPass);
-		labelPane.setBorder(new Border(new BorderStroke(Color.GRAY, BorderStrokeStyle.SOLID, new CornerRadii(6), new BorderWidths(3))));
+		labelPane.setBorder(new Border(new BorderStroke(color, BorderStrokeStyle.SOLID, new CornerRadii(6), new BorderWidths(3))));
 		
 		generationPane.setCenter(labelPane);
 		generationPane.setRight(generate);
@@ -747,7 +725,11 @@ public class GlobalView {
 			return null;
 		});
 		
-		return dialog.showAndWait().get();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
 	
 	public static String changePINDialog() {
@@ -787,19 +769,26 @@ public class GlobalView {
 			return null;
 		});
 		
-		return dialog.showAndWait().get();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
 	
-	public static void backupDialog() {
-		Dialog<String> dialog = new Dialog<>();
+	public static String[] backupAndRestoreDialog() {
+		Dialog<String[]> dialog = new Dialog<>();
+		updateTheme(dialog.getDialogPane().getScene());
+		dialog.initOwner(scene.getWindow());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.BACKUP);
-		dialog.setTitle(Messages.get("BACKUP_DIALOG"));
+		dialog.setTitle(Messages.get("BACKUP_RESTORE_DIALOG"));
 		dialog.setHeaderText(null);
 		
-		ButtonType save = new ButtonType(Messages.get("BACKUP_SAVE"), ButtonData.OK_DONE);
-		ButtonType close = new ButtonType(Messages.get("BACKUP_CLOSE"), ButtonData.CANCEL_CLOSE);
-		dialog.getDialogPane().getButtonTypes().addAll(save, close);
+		ButtonType backup = new ButtonType(Messages.get("BACKUP_BACKUP"), ButtonData.OK_DONE);
+		ButtonType restore = new ButtonType(Messages.get("BACKUP_RESTORE"), ButtonData.OK_DONE);
+		ButtonType close = new ButtonType(Messages.get("BACKUP_CANCEL"), ButtonData.CANCEL_CLOSE);
+		dialog.getDialogPane().getButtonTypes().addAll(backup, restore, close);
 		
 		
 		TextField file = new TextField();
@@ -829,275 +818,47 @@ public class GlobalView {
 		gp.add(new Label(Messages.get("BACKUP_PASSWORD")), 0, 1);
 		gp.add(password, 1, 1);
 		gp.add(show, 2, 1);
-		ProgressBarWithText pb = new ProgressBarWithText();
 		
 		show.setOnAction(event -> {
 			gp.getChildren().remove(show.isSelected() ? password : password2);
 			gp.add(show.isSelected() ? password2 : password, 1, 1);
 		});
 		
-		Node saveButton = dialog.getDialogPane().lookupButton(save);
-		saveButton.setDisable(true);
+		Node backupButton = dialog.getDialogPane().lookupButton(backup);
+		backupButton.setDisable(true);
+		Node restoreButton = dialog.getDialogPane().lookupButton(restore);
+		restoreButton.setDisable(true);
 
 		file.textProperty().addListener((observable, oldValue, newValue) -> {
-			saveButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
+			backupButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
+			restoreButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
 		});
 		password.textProperty().addListener((observable, oldValue, newValue) -> {
-			saveButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
+			backupButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
+			restoreButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
 		});
 
-		dialog.getDialogPane().setContent(new VBox(4, gp, pb));
+		dialog.getDialogPane().setContent(new VBox(4, gp));
 		Platform.runLater(() -> file.requestFocus());
 		
-		saveButton.addEventFilter(ActionEvent.ACTION, event -> {
-			event.consume();
-			new Thread((Runnable) () -> {
-				pb.reset();
-				pb.setProgress(0.1, Messages.get("BACKUP_INFO_1"));
-				String tmp = "SmartSafe\n";
-				double delta = 0.8 / (Controls.getAppli().getGroups().size() + 1);
-				for (String group : Controls.getAppli().getGroups()) {
-					Controls.getAppli().selectGroup(group);
-					tmp += group + Controls.getAppli().getStats().get(3, 1).toString() + "\n";
-					double delta2 = delta / (Controls.getAppli().getEntries(group, false).size() + 1);
-					for (Entry entry : Controls.getAppli().getEntries(group, false)) {
-						pb.addProgress(delta2);
-						tmp += entry.getIdentifier().get() + "\t";
-						tmp += entry.getUserName().get() + "\t";
-						tmp += entry.getPassword().get() + "\t";
-						tmp += entry.getLastUpdate().get().toString() + "\t";
-						if (entry.getExpiresDate().get() != null)
-							tmp += entry.getExpiresDate().get().toString() + "\t";
-						else
-							tmp += "\t";
-						if (entry.getUrl().get() != null)
-							tmp += entry.getUrl().get() + "\t";
-						else
-							tmp += "\t";
-						if (entry.getNotes().get() != null)
-							tmp += entry.getNotes().get() + "\t\n";
-						else
-							tmp += "\t\n";
-						entry.maskPassword();//Mask password after reading
-					}
-					pb.addProgress(delta2);
-					tmp += "\n";
-				}
-				pb.addProgress(delta);
-				pb.setText(Messages.get("BACKUP_INFO_2"));
-				try {
-					Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-					byte[] keyValue = Crypto.keyFromPassword(password.getText()).get(0, 16).toBytes();
-					cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyValue, "AES"), new IvParameterSpec(Crypto.IV));
-					tmp = (Crypto.BACKUP_HEADER.toString() + new StringHex(cipher.doFinal(tmp.getBytes())).toString()).replace(" ", "");
-				} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e1) {
-					pb.setProgress(1, Messages.get("BACKUP_ERROR_1"));
-					pb.setTextStyle(true);
-					return;
-				}
-				
-				try (BufferedWriter bf = Files.newBufferedWriter(Paths.get(file.getText()), StandardCharsets.UTF_8)){
-					bf.write(tmp);
-				} catch (IOException e) {
-					pb.setProgress(1, Messages.get("BACKUP_ERROR_2"));
-					pb.setTextStyle(true);
-					return;
-				}
-				pb.setProgress(1, Messages.get("BACKUP_INFO_3"));
-			}).start();
+		dialog.setResultConverter(dialogButton -> {
+			if (dialogButton == backup || dialogButton == restore) {
+				return new String[] {file.getText(), password.getText(), dialogButton.getText()};
+			}
+			return null;
 		});
 		
-		dialog.showAndWait();
+		try {
+			return dialog.showAndWait().get();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
 	}
 
-	public static void firstInitDialog() {
-		Dialog<String> dialog = new Dialog<>();
-		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
-		stage.getIcons().add(Images.INIT);
-		dialog.setTitle(Messages.get("INIT_DIALOG"));
-		dialog.setHeaderText(null);
-		
-		IntegerProperty validator = new SimpleIntegerProperty(0x4);
-		
-		ButtonType close = new ButtonType(Messages.get("INIT_CLOSE"), ButtonData.CANCEL_CLOSE);
-		ButtonType personnalize = new ButtonType(Messages.get("INIT_PERSO"), ButtonData.OK_DONE);
-		dialog.getDialogPane().getButtonTypes().addAll(close, personnalize);
-		
-		GridPane gp = new GridPane();
-		gp.setHgap(2);
-		gp.setVgap(2);
-		
-		ComboBox<CardTerminal> readerList = getTerminals();
-		if (readerList == null)
-			return;
-		
-		gp.add(new Label(Messages.get("CONNECT_SELECT_READER")), 0, 0);
-		gp.add(readerList, 1, 0);
-		
-		TextField bckpFile = new TextField();
-		StackPane bckpSp = new StackPane(bckpFile, ViewUtils.createWarning());
-		bckpSp.getChildren().get(1).setVisible(false);
-		bckpFile.textProperty().addListener((observable, oldValue, newValue) -> {
-			ViewUtils.bckpFileValidator(validator, bckpSp, newValue, true);
-		});
-		Button browseBckp = new Button(Messages.get("INIT_BROWSE"));
-		browseBckp.setOnAction(event -> {
-			FileChooser fileChooser = new FileChooser();
-			fileChooser.setTitle(Messages.get("INIT_CHOOSE_BCKP"));
-			File tmp = fileChooser.showOpenDialog((Stage) dialog.getDialogPane().getScene().getWindow());
-			if (tmp != null) {
-				bckpFile.setText(tmp.getAbsolutePath());
-			}
-		});
-		Label bckpLabel = new Label(Messages.get("INIT_BCKP_LABEL"));
-		PasswordField bckpPass = new PasswordField();
-		TextField bckpText = new TextField();
-		ViewUtils.bindTextAndPassField(bckpText, bckpPass);
-		ToggleButton bckpShow = new ToggleButton(Messages.get("INIT_SHOW"));
-		bckpShow.setOnAction(event -> {
-			gp.getChildren().remove(bckpShow.isSelected() ? bckpPass : bckpText);
-			gp.add(bckpShow.isSelected() ? bckpText : bckpPass, 1, 2);
-		});
-		bckpShow.setMaxWidth(Double.MAX_VALUE);
-		CheckBox bckpCheck = new CheckBox(Messages.get("INIT_BCKP"));
-		bckpCheck.selectedProperty().addListener((observable, oldValue, newValue) -> {
-			ViewUtils.bckpFileValidator(validator, bckpSp, bckpFile.getText(), newValue.booleanValue());
-		});
-		ViewUtils.addDisableListener(bckpSp, bckpCheck.selectedProperty());
-		ViewUtils.addDisableListener(browseBckp, bckpCheck.selectedProperty());
-		ViewUtils.addDisableListener(bckpLabel, bckpCheck.selectedProperty());
-		ViewUtils.addDisableListener(bckpPass, bckpCheck.selectedProperty());
-		ViewUtils.addDisableListener(bckpShow, bckpCheck.selectedProperty());
-		gp.add(bckpCheck, 0, 1);
-		gp.add(bckpSp, 1, 1);
-		gp.add(browseBckp, 2, 1);
-		gp.add(bckpLabel, 0, 2);
-		gp.add(bckpPass, 1, 2);
-		gp.add(bckpShow, 2, 2);
-		
-		PasswordField userPass = new PasswordField();
-		TextField userText = new TextField();
-		userPass.textProperty().addListener((observable, oldValue, newValue) -> {
-			if (newValue.isEmpty())
-				validator.set(validator.get() | 0x4);
-			else
-				validator.set(validator.get() & ~0x4);
-		});
-		ViewUtils.bindTextAndPassField(userText, userPass);
-		ToggleButton userShow = new ToggleButton(Messages.get("INIT_SHOW"));
-		userShow.setMaxWidth(Double.MAX_VALUE);
-		userShow.setOnAction(event -> {
-			gp.getChildren().remove(userShow.isSelected() ? userPass : userText);
-			gp.add(userShow.isSelected() ? userText : userPass, 1, 3);
-		});
-		gp.add(new Label(Messages.get("INIT_PASS")), 0, 3);
-		gp.add(userPass, 1, 3);
-		gp.add(userShow, 2, 3);
-		
-		ProgressBarWithText pb = new ProgressBarWithText();
-		
-		VBox main = new VBox(4, gp, pb);
-		
-		Button personnalizeB = (Button) dialog.getDialogPane().lookupButton(personnalize);
-		personnalizeB.setDisable(true);
-		validator.addListener((observable, oldValue, newValue) -> personnalizeB.setDisable(newValue.intValue() != 0));
-		
-		personnalizeB.addEventFilter(ActionEvent.ACTION, event -> {
-			event.consume();
-			new Thread((Runnable) () -> {
-				pb.reset();
-				SmartSafeAppli appli = new SmartSafeAppli(readerList.getSelectionModel().getSelectedItem());
-				try {
-					appli.coldReset();
-					APDUResponse resp = appli.select();
-					if (resp.getStatusWord() != SmartSafeAppli.SW_NO_ERROR) {
-						pb.setProgress(1, Messages.get("INIT_PB_1"));
-						pb.setTextStyle(true);
-					}
-					else {
-						if (new StringHex(resp.getData()).toString().equals("DE CA")) {
-							String tmp = "";
-							if (bckpCheck.isSelected()) {
-								//verifying data to restore
-								try (BufferedReader br = Files.newBufferedReader(Paths.get(bckpFile.getText()), StandardCharsets.UTF_8)){
-									tmp = br.readLine();
-									if (!tmp.startsWith(Crypto.BACKUP_HEADER.toString().replace(" ", ""))) {
-										pb.setProgress(1, Messages.get("INIT_PB_5"));
-										pb.setTextStyle(true);
-										return;
-									}
-									tmp = tmp.substring(Crypto.BACKUP_HEADER.toString().replace(" ", "").length());
-								} catch (IOException e) {
-									pb.setProgress(1, Messages.get("INIT_PB_6"));
-									pb.setTextStyle(true);
-									return;
-								}
-								
-								try {
-									Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-									byte[] keyValue = Crypto.keyFromPassword(bckpPass.getText()).get(0, 16).toBytes();
-									cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(keyValue, "AES"), new IvParameterSpec(Crypto.IV));
-									tmp = new String(cipher.doFinal(new StringHex(tmp).toBytes()));
-									if (!tmp.startsWith("SmartSafe\n")) {
-										pb.setProgress(1, Messages.get("INIT_PB_7"));
-										pb.setTextStyle(true);
-										return;
-									}
-									tmp = tmp.substring("SmartSafe\n".length());
-								} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException e1) {
-									pb.setProgress(1, Messages.get("INIT_PB_8"));
-									pb.setTextStyle(true);
-									return;
-								}
-							}
-							
-							appli.changePin(userText.getText());
-							if (bckpCheck.isSelected()) {
-								Matcher mGroup = Pattern.compile("(?<GROUP>.+)(?<NB>[0-9A-F]{2})\n").matcher(tmp);
-								Matcher mEntry = Pattern.compile("(?<ID>.+)\t(?<USER>.+)\t(?<PASS>.+)\t(?<LAST>.+)\t(?<EXP>.*)\t(?<URL>.*)\t(?<NOTE>.*)\t\n?").matcher(tmp);
-								appli.authenticate(userText.getText());
-								appli.getGroups();
-								pb.setProgress(0.1, Messages.get("INIT_PB_9"));
-								int it = 0;
-								double delta = 0.8 / tmp.length();
-								while (it + 1 < tmp.length()) {
-									mGroup.find(it);
-									appli.createGroup(Byte.valueOf(mGroup.group("NB"), 16), mGroup.group("GROUP"), false);
-									it = mGroup.end();
-									while (it < tmp.length() && tmp.charAt(it) != '\n') {
-										mEntry.find(it);
-										appli.addEntry(Entry.NB_PROPERTIES, new Entry(appli.getSelectedGroup(), mEntry.group("ID"), mEntry.group("USER")), false);
-										appli.setData(Entry.INDEX_PASSWORD, mEntry.group("PASS"), false);
-										appli.setData(Entry.INDEX_lAST_UPDATE, mEntry.group("LAST"), false);
-										appli.setData(Entry.INDEX_EXP_DATE, mEntry.group("EXP"), false);
-										appli.setData(Entry.INDEX_URL, mEntry.group("URL"), false);
-										appli.setData(Entry.INDEX_NOTES, mEntry.group("NOTE"), false);
-										it = mEntry.end();
-										pb.setProgress(delta * it);
-									}
-									pb.setProgress(delta * it);
-								}
-							}
-							pb.setProgress(1, Messages.get("INIT_PB_2"));
-						}
-						else {
-							pb.setProgress(1, Messages.get("INIT_PB_3"));
-							pb.setTextStyle(true);
-						}
-					}
-				} catch (GPException e) {
-					pb.setProgress(1, Messages.get("INIT_PB_4"));
-				}
-				
-				appli.disconnect();
-			}).start();
-		});
-		
-		dialog.getDialogPane().setContent(main);
-		dialog.showAndWait();
-	}
 	public static void manageServerDialog() {
 		Dialog<String> dialog = new Dialog<>();
+		updateTheme(dialog.getDialogPane().getScene());
+		dialog.initOwner(scene.getWindow());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.UPDATE);
 		dialog.setTitle(Messages.get("MANAGE_DIALOG"));
@@ -1405,6 +1166,8 @@ public class GlobalView {
 	
 	public static void preferencesDialog() {
 		Dialog<String> dialog = new Dialog<>();
+		updateTheme(dialog.getDialogPane().getScene());
+		dialog.initOwner(scene.getWindow());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.PREFERENCES);
 		dialog.setTitle(Messages.get("PREFS_DIALOG"));
@@ -1419,6 +1182,11 @@ public class GlobalView {
 		language.setMaxWidth(Double.MAX_VALUE);
 		language.getItems().addAll(Prefs.LANGUAGES_LIST);
 		language.getSelectionModel().select(Prefs.get(Prefs.KEY_LANGUAGE));
+		
+		ComboBox<String> theme = new ComboBox<>();
+		theme.setMaxWidth(Double.MAX_VALUE);
+		theme.getItems().addAll(Prefs.THEMES_LIST);
+		theme.getSelectionModel().select(Prefs.get(Prefs.KEY_THEME));
 		
 		TextField chars = new TextField(Prefs.get(Prefs.KEY_CHARS));
 		chars.setPrefWidth(250);
@@ -1458,20 +1226,23 @@ public class GlobalView {
 		gp.setVgap(2);
 		gp.add(new Label(Messages.get("PREFS_LANGUAGE")), 0, 0);
 		gp.add(language, 1, 0);
-		gp.add(new Label(Messages.get("PREFS_CHARS")), 0, 1);
-		gp.add(chars, 1, 1);
-		gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 2);
-		gp.add(pckgAid, 1, 2);
-		gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 3);
-		gp.add(appAidSuffix, 1, 3);
-		gp.add(new Label(Messages.get("PREFS_TIMER")), 0, 4);
-		gp.add(timer, 1, 4);
+		gp.add(new Label(Messages.get("PREFS_THEME")), 0, 1);
+		gp.add(theme, 1, 1);
+		gp.add(new Label(Messages.get("PREFS_CHARS")), 0, 2);
+		gp.add(chars, 1, 2);
+		gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 3);
+		gp.add(pckgAid, 1, 3);
+		gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 4);
+		gp.add(appAidSuffix, 1, 4);
+		gp.add(new Label(Messages.get("PREFS_TIMER")), 0, 5);
+		gp.add(timer, 1, 5);
 
 		dialog.getDialogPane().setContent(gp);
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
 				Prefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
+				Prefs.put(Prefs.KEY_THEME, theme.getSelectionModel().getSelectedItem());
 				Prefs.put(Prefs.KEY_CHARS, chars.getText());
 				Prefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
 				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
@@ -1479,24 +1250,85 @@ public class GlobalView {
 			}
 			else if (dialogButton == reset) {
 				Prefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
+				Prefs.put(Prefs.KEY_THEME, Prefs.DEFAULT_THEME);
 				Prefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
 				Prefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
 				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
 				Prefs.put(Prefs.KEY_TIMER, Prefs.DEFAULT_TIMER);
 			}
 			Messages.reloadMessages();
+			updateTheme();
 			return null;
 		});
+		
 		dialog.showAndWait();
-	
 	}
 
+	public static void propertiesDialog(SmartSafeAppli appli) {
+		Dialog<String> dialog = new Dialog<>();
+		updateTheme(dialog.getDialogPane().getScene());
+		dialog.initOwner(scene.getWindow());
+		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
+		stage.getIcons().add(Images.PROPERTIES);
+		dialog.setTitle(Messages.get("PROP_DIALOG"));
+		dialog.setHeaderText(null);
+		
+		
+		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(ok);
+		
+		int freeSpace = appli.getAivailableMemory();
+		int usedSpace = 0;
+		Map<String, Short> footprints = new HashMap<>();
+		for (String group : appli.getGroups()) {
+			short groupSize = 0;
+			for (Entry e : appli.getEntries(group, true)) {
+				groupSize += e.getIdentifier().getValue().length();
+				groupSize += e.getUserName().getValue().length();
+				groupSize += e.getPassword().getValue().length();
+				groupSize += e.getUrl().getValue().length();
+				groupSize += e.getNotes().getValue().length();
+				groupSize += 20;//Dates
+			}
+			footprints.put(group, Short.valueOf(groupSize));
+			usedSpace += groupSize;
+		}
+		double totalSpace = freeSpace + usedSpace;
+		ObservableList<PieChart.Data> pieChartData =
+                FXCollections.observableArrayList(
+                new PieChart.Data(Messages.get("PROP_FREE"), freeSpace * 100 / totalSpace),
+                new PieChart.Data(Messages.get("PROP_USED"), usedSpace * 100 / totalSpace));
+        PieChart chart = new PieChart(pieChartData);
+        chart.setTitle(Messages.get("PROP_TOKEN"));
+        chart.setLegendVisible(false);
+        
+        ObservableList<PieChart.Data> pieChartData2 = FXCollections.observableArrayList();
+        for (Map.Entry<String, Short> e : footprints.entrySet()) {
+        	pieChartData2.add(new PieChart.Data(e.getKey(), e.getValue() * 100 / usedSpace));
+        }
+        PieChart chart2 = new PieChart(pieChartData2);
+        chart2.setTitle(Messages.get("PROP_GROUP"));
+        chart2.setLegendVisible(false);
+		
+		
+        GridPane gp = new GridPane();
+        gp.add(chart, 0, 0);
+        gp.add(chart2, 1, 0);
+		
+		dialog.getDialogPane().setContent(gp);
+		Platform.runLater(() -> pieChartData.get(0).getNode().setStyle("-fx-pie-color: #6495ED;"));
+		dialog.showAndWait();
+	}
+	
 	public static void aboutDialog(String version) {
 		Dialog<String> dialog = new Dialog<>();
+		updateTheme(dialog.getDialogPane().getScene());
+		dialog.initOwner(scene.getWindow());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.ABOUT);
 		dialog.setTitle(Messages.get("ABOUT_DIALOG"));
 		dialog.setHeaderText(null);
+		
 		
 		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(ok);

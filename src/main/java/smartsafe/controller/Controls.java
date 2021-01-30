@@ -6,8 +6,6 @@ import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.LinkedList;
-import java.util.List;
 
 import javax.smartcardio.CardTerminal;
 
@@ -22,12 +20,15 @@ import javafx.scene.control.TreeItem;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCombination;
 import smartsafe.Messages;
+import smartsafe.Prefs;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.model.Entry;
 import smartsafe.view.GlobalView;
 import smartsafe.view.Help;
 import smartsafe.view.Images;
+import smartsafe.view.ProgressDialog;
 import smartsafe.view.ViewUtils;
+import util.StringHex;
 
 public class Controls {
 	private static ToggleButton connection;
@@ -44,7 +45,30 @@ public class Controls {
 	public static final String DISCONNECT = Messages.get("DISCONNECT");
 	public static final Action ACTION_CONNECT = new Action(CONNECT, false, null, params -> {
 		if (appli == null) {
-			GlobalView.connectDialog();
+			Object[] values = GlobalView.connectDialog();
+			
+			if (values != null) {
+				createAppli((CardTerminal) values[0], (String) values[1]);
+				if (appli != null) {
+					Prefs.put(Prefs.KEY_READER, ((CardTerminal) values[0]).toString());
+					
+					ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
+					d.showDialog();
+					
+					new Thread((Runnable) () -> {
+						double delta = 1d / appli.getGroups().size();
+						for (String group : appli.getGroups()) {
+							appli.getEntries(group, true);
+							d.addProgress(delta);
+						}
+						d.closeDialog();
+						for (String group : appli.getGroups()) {
+							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
+						}
+						ConnectionTimer.start();
+					}).start();
+				}
+			}
 		}
 		else {
 			//Disconnect and clear view
@@ -62,6 +86,7 @@ public class Controls {
 			connection.setTooltip(new Tooltip(Controls.DISCONNECT));
 			connectionMenu.setGraphic(new ImageView(Images.DISCONNECT));
 			connectionMenu.setText(Controls.DISCONNECT);
+			
 		}
 		else {
 			ConnectionTimer.stop();
@@ -75,13 +100,45 @@ public class Controls {
 	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
 	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
 		ConnectionTimer.restart();
-		GlobalView.newGroupDialog();
+		String name = GlobalView.newGroupDialog();
+		if (name != null) {
+			short sw = appli.createGroup((byte) 32, name, true).getStatusWord();
+			if (sw == SmartSafeAppli.SW_NO_ERROR) {
+				GlobalView.getGroups().getChildren().add(new TreeItem<String>(name));
+			}
+			else if (sw == SmartSafeAppli.SW_FILE_FULL) {
+				GlobalView.errorDialog(Messages.get("GROUP_ERROR_1"));
+			}
+			else {
+				GlobalView.errorDialog(Messages.get("GROUP_ERROR_2") + new StringHex(sw).toString());
+			}
+		}
 	});
 	
 	public static final String NEW_ENTRY = Messages.get("NEW_ENTRY");
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
 		ConnectionTimer.restart();
-		GlobalView.entryDialog(null);
+		String[] data = GlobalView.entryDialog(null);
+		Entry entry = new Entry(appli.getSelectedGroup(), data[0], data[1]);
+		short sw = appli.addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
+		if (sw == SmartSafeAppli.SW_FILE_FULL) {
+			GlobalView.errorDialog(Messages.get("ENTRY_ERROR_1"));
+			return;
+		}
+		else if (sw != SmartSafeAppli.SW_NO_ERROR) {
+			GlobalView.errorDialog(Messages.get("ENTRY_ERROR_2") + new StringHex(sw).toString());
+			return;
+		}
+		GlobalView.getTableEntries().getItems().add(entry);
+		if (data[Entry.INDEX_PASSWORD + 2].length() != 0) {
+			appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
+			appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
+			entry.maskPassword();
+		}
+		if (data[Entry.INDEX_EXP_DATE + 2] != null)
+			appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
+		appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
+		appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
 	});
 	
 	public static final String DELETE = Messages.get("DELETE");
@@ -98,7 +155,6 @@ public class Controls {
 					appli.deleteEntry((Entry) response);
 			}
 		}
-		
 	});
 	
 	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
@@ -112,12 +168,15 @@ public class Controls {
 	public static final String BACKUP = Messages.get("BACKUP");
 	public static final Action ACTION_BACKUP = new Action(BACKUP, false, null, params -> {
 		ConnectionTimer.restart();
-		GlobalView.backupDialog();
-	});
-	
-	public static final String INIT = Messages.get("INIT");
-	public static final Action ACTION_INIT = new Action(INIT, false, null, params -> {
-		GlobalView.firstInitDialog();
+		String[] data = GlobalView.backupAndRestoreDialog();
+		if (data == null)
+			return;
+		if (data[2].equals(Messages.get("BACKUP_BACKUP"))) {
+			BackupManager.backup(appli, data[0], data[1]);
+		}
+		else if (data[2].equals(Messages.get("BACKUP_RESTORE"))) {
+			BackupManager.restore(appli, data[0], data[1]);
+		}
 	});
 	
 	public static final String UPDATE = Messages.get("UPDATE");
@@ -139,7 +198,18 @@ public class Controls {
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
-		GlobalView.entryDialog(e);
+		final String oldPass = e.getPassword().get();
+		String[] data = GlobalView.entryDialog(e);
+		if (!data[Entry.INDEX_PASSWORD + 2].equals(oldPass)) {
+			appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
+			appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
+		}
+		e.maskPassword();
+		if (data[Entry.INDEX_EXP_DATE + 2] != null)
+			appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
+		appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
+		appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
+		
 		GlobalView.getTableEntries().getSelectionModel().select(null);
 		GlobalView.getTableEntries().getSelectionModel().select(e);
 	});
@@ -192,7 +262,8 @@ public class Controls {
 	
 	public static final String PROPERTIES = Messages.get("PROPERTIES");
 	public static final Action ACTION_PROPERTIES = new Action(PROPERTIES, false, null, params -> {
-		//TODO
+		ConnectionTimer.restart();
+		GlobalView.propertiesDialog(appli);
 	});
 	
 	public static final String PREFERENCES = Messages.get("PREFERENCES");
@@ -208,107 +279,99 @@ public class Controls {
 	});
 	//================== END ACTIONS ==================\\
 	
-	
-	private static final List<ButtonBase> BUTTONS = new LinkedList<>();
-	private static final List<MenuItem> ITEMS = new LinkedList<>();
-	
 	static {
 		ButtonBase b;
 		MenuItem mi;
 		
-		BUTTONS.add(b = connection = new ToggleButton("", new ImageView(Images.CONNECT)));
+		GlobalView.BUTTONS.add(b = connection = new ToggleButton("", new ImageView(Images.CONNECT)));
 		b.setTooltip(new Tooltip(CONNECT));
 		b.setOnAction(event-> ACTION_CONNECT.run());
 		
-		ITEMS.add(mi = connectionMenu = new MenuItem(CONNECT, new ImageView(Images.CONNECT)));
+		GlobalView.ITEMS.add(mi = connectionMenu = new MenuItem(CONNECT, new ImageView(Images.CONNECT)));
 		mi.setOnAction(event -> ACTION_CONNECT.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+Q"));
 		
-		BUTTONS.add(b = new Button("", new ImageView(Images.NEW_GROUP)));
+		GlobalView.BUTTONS.add(b = new Button("", new ImageView(Images.NEW_GROUP)));
 		ViewUtils.addDisableListener(b, ViewUtils.cardConnected);
 		b.setTooltip(new Tooltip(NEW_GROUP));
 		b.setOnAction(event -> ACTION_NEW_GROUP.run());
 		
-		ITEMS.add(mi = new MenuItem(NEW_GROUP, new ImageView(Images.NEW_GROUP)));
+		GlobalView.ITEMS.add(mi = new MenuItem(NEW_GROUP, new ImageView(Images.NEW_GROUP)));
 		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_NEW_GROUP.run());
 		
-		BUTTONS.add(b = new Button("", new ImageView(Images.NEW_ENTRY)));
+		GlobalView.BUTTONS.add(b = new Button("", new ImageView(Images.NEW_ENTRY)));
 		ViewUtils.addDisableListener(b, ViewUtils.groupSelected);
 		b.setTooltip(new Tooltip(NEW_ENTRY));
 		b.setOnAction(event -> ACTION_NEW_ENTRY.run());
 		
-		ITEMS.add(mi = new MenuItem(NEW_ENTRY, new ImageView(Images.NEW_ENTRY)));
+		GlobalView.ITEMS.add(mi = new MenuItem(NEW_ENTRY, new ImageView(Images.NEW_ENTRY)));
 		ViewUtils.addDisableListener(mi, ViewUtils.groupSelected);
 		mi.setOnAction(event -> ACTION_NEW_ENTRY.run());
 		
-		BUTTONS.add(b = new Button("", new ImageView(Images.DELETE)));
+		GlobalView.BUTTONS.add(b = new Button("", new ImageView(Images.DELETE)));
 		ViewUtils.addDisableListener(b, ViewUtils.groupSelected);
 		b.setTooltip(new Tooltip(DELETE));
 		b.setOnAction(event -> ACTION_DELETE.run());
 		
-		ITEMS.add(mi = new MenuItem(DELETE, new ImageView(Images.DELETE)));
+		GlobalView.ITEMS.add(mi = new MenuItem(DELETE, new ImageView(Images.DELETE)));
 		ViewUtils.addDisableListener(mi, ViewUtils.groupSelected);
 		mi.setOnAction(event -> ACTION_DELETE.run());
 		mi.setAccelerator(KeyCombination.valueOf("Delete"));
 		
-		ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
+		GlobalView.ITEMS.add(mi = new MenuItem(CHANGE_PIN, new ImageView(Images.PIN)));
 		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_CHANGE_PIN.run());
 		
-		ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
+		GlobalView.ITEMS.add(mi = new MenuItem(BACKUP, new ImageView(Images.BACKUP)));
 		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_BACKUP.run());
 		
-		ITEMS.add(mi = new MenuItem(INIT, new ImageView(Images.INIT)));
-		ViewUtils.addEnableListener(mi, ViewUtils.cardConnected);
-		mi.setOnAction(event -> ACTION_INIT.run());
-		
-		ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
+		GlobalView.ITEMS.add(mi = new MenuItem(UPDATE, new ImageView(Images.UPDATE)));
 		ViewUtils.addEnableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_UPDATE.run());
 		
-		ITEMS.add(mi = new MenuItem(EXIT));
+		GlobalView.ITEMS.add(mi = new MenuItem(EXIT));
 		mi.setOnAction(event -> ACTION_EXIT.run());
 		mi.setAccelerator(KeyCombination.valueOf("Alt+F4"));
 		
-		ITEMS.add(mi = new MenuItem(EDIT, new ImageView(Images.EDIT)));
+		GlobalView.ITEMS.add(mi = new MenuItem(EDIT, new ImageView(Images.EDIT)));
 		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_EDIT.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+E"));
 		
-		ITEMS.add(mi = new MenuItem(GOTO, new ImageView(Images.GOTO)));
+		GlobalView.ITEMS.add(mi = new MenuItem(GOTO, new ImageView(Images.GOTO)));
 		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_GOTO.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+G"));
 		
-		ITEMS.add(mi = new MenuItem(COPY_USER, new ImageView(Images.COPY)));
+		GlobalView.ITEMS.add(mi = new MenuItem(COPY_USER, new ImageView(Images.COPY)));
 		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_COPY_USER.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+X"));
 		
-		ITEMS.add(mi = new MenuItem(COPY_PASS, new ImageView(Images.COPY_PASS)));
+		GlobalView.ITEMS.add(mi = new MenuItem(COPY_PASS, new ImageView(Images.COPY_PASS)));
 		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_COPY_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+C"));
 		
-		ITEMS.add(mi = new MenuItem(SHOW_PASS, new ImageView(Images.SHOW_PASS)));
+		GlobalView.ITEMS.add(mi = new MenuItem(SHOW_PASS, new ImageView(Images.SHOW_PASS)));
 		ViewUtils.addDisableListener(mi, ViewUtils.entrySelected);
 		mi.setOnAction(event -> ACTION_SHOW_PASS.run());
 		mi.setAccelerator(KeyCombination.valueOf("Ctrl+S"));
 		
-		ITEMS.add(mi = new MenuItem(HELP, new ImageView(Images.HELP)));
+		GlobalView.ITEMS.add(mi = new MenuItem(HELP, new ImageView(Images.HELP)));
 		mi.setOnAction(event -> ACTION_HELP.run());
 		mi.setAccelerator(KeyCombination.valueOf("F1"));
 		
-		ITEMS.add(mi = new MenuItem(PROPERTIES, new ImageView(Images.PROPERTIES)));
+		GlobalView.ITEMS.add(mi = new MenuItem(PROPERTIES, new ImageView(Images.PROPERTIES)));
 		ViewUtils.addDisableListener(mi, ViewUtils.cardConnected);
 		mi.setOnAction(event -> ACTION_PROPERTIES.run());
 		
-		ITEMS.add(mi = new MenuItem(PREFERENCES, new ImageView(Images.PREFERENCES)));
+		GlobalView.ITEMS.add(mi = new MenuItem(PREFERENCES, new ImageView(Images.PREFERENCES)));
 		mi.setOnAction(event -> ACTION_PREFERENCES.run());
 		
-		ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
+		GlobalView.ITEMS.add(mi = new MenuItem(ABOUT, new ImageView(Images.ABOUT)));
 		mi.setOnAction(event -> ACTION_ABOUT.run());
 		
 		ViewUtils.cardConnected.set(false);
@@ -316,20 +379,7 @@ public class Controls {
 		ViewUtils.entrySelected.set(false);
 	}
 	
-	public static ButtonBase getButton(String name) {
-		for (ButtonBase b : BUTTONS)
-			if (b.getTooltip().getText().equals(name))
-				return b;
-		return null;
-	}
-	public static MenuItem getMenuItem(String name) {
-		for (MenuItem mi : ITEMS)
-			if (mi.getText().equals(name))
-				return mi;
-		return null;
-	}
-	
-	public static void createAppli(CardTerminal reader, String password) {
+	private static void createAppli(CardTerminal reader, String password) {
 		appli = new SmartSafeAppli(reader);
 		try {
 			appli.coldReset();

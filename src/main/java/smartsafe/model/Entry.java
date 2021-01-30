@@ -27,13 +27,13 @@ public class Entry {
 	
 	public Entry(String group) {
 		this.group = group;
-		this.identifier = new SimpleStringProperty();
-		this.userName = new SimpleStringProperty();
-		this.password = new SimpleStringProperty();
+		this.identifier = new SimpleStringProperty("");
+		this.userName = new SimpleStringProperty("");
+		this.password = new SimpleStringProperty("");
 		this.lastUpdate = new SimpleObjectProperty<LocalDate>();
 		this.expiresDate = new SimpleObjectProperty<LocalDate>();
-		this.url = new SimpleStringProperty();
-		this.notes = new SimpleStringProperty();
+		this.url = new SimpleStringProperty("");
+		this.notes = new SimpleStringProperty("");
 	}
 	public Entry(String group, String identifier) {
 		this(group);

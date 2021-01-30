@@ -23,6 +23,8 @@ public class Help {
 			htmlDir = ResourcesManager.initHtmlDirectory();
 		
 		Dialog<String> dialog = new Dialog<>();
+		dialog.initOwner(GlobalView.getScene().getWindow());
+		GlobalView.updateTheme(dialog.getDialogPane().getScene());
 		Stage stage = (Stage) dialog.getDialogPane().getScene().getWindow();
 		stage.getIcons().add(Images.HELP);
 		

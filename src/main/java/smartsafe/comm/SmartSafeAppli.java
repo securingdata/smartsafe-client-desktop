@@ -139,8 +139,9 @@ public class SmartSafeAppli extends SCP03 {
 		}
 		return send("Change PIN", "80020000", new StringHex(newPin.getBytes()).toString(), "");
 	}
-	public APDUResponse getAivailableMemory() {
-		return send("Available", getCla() + "030000", "", "");
+	public int getAivailableMemory() {
+		byte[] data = send("Available", getCla() + "030000", "", "").getData();
+		return ((data[0] << 8) | data[1]) & 0xFFFF;
 	}
 	public String getVersion() {
 		if (version == null)

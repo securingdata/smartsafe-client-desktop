@@ -12,6 +12,10 @@ public interface Prefs {
 	public String[] LANGUAGES_LIST = {"English", "Français"};
 	public String DEFAULT_LANGUAGE = LANGUAGES_LIST[0];
 	
+	public String KEY_THEME = "theme";
+	public String[] THEMES_LIST = {"Classic", "Dark"};
+	public String DEFAULT_THEME = THEMES_LIST[0];
+	
 	public String KEY_CHARS = "chars";
 	public String DEFAULT_CHARS = "#$%?!/*=";
 	
@@ -26,6 +30,10 @@ public interface Prefs {
 	
 	public String KEY_TIMER = "timer";
 	public String DEFAULT_TIMER = "300";
+	
+	public String KEY_ADM = "adm";
+	public String[] ADM_LIST = {"No", "Yes"};
+	public String DEFAULT_ADM = ADM_LIST[0];
 	
 	
 	static Locale prefToLocale() {
@@ -50,6 +58,9 @@ public interface Prefs {
 			case KEY_LANGUAGE:
 				def = DEFAULT_LANGUAGE;
 				break;
+			case KEY_THEME:
+				def = DEFAULT_THEME;
+				break;
 			case KEY_CHARS:
 				def = DEFAULT_CHARS;
 				break;
@@ -64,6 +75,9 @@ public interface Prefs {
 				break;
 			case KEY_TIMER:
 				def = DEFAULT_TIMER;
+				break;
+			case KEY_ADM:
+				def = DEFAULT_ADM;
 				break;
 			default:
 				return null;

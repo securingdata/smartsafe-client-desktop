@@ -4,7 +4,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 
 import javafx.application.Application;
-import javafx.scene.Scene;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Dialog;
 import javafx.scene.control.DialogPane;
@@ -25,9 +24,8 @@ public class LaunchView extends Application {
 	@Override
 	public void start(Stage primaryStage) throws Exception {
 		try {
-			Scene scene = new Scene(GlobalView.createView(), 700, 400);
 			primaryStage.setTitle("SmartSafe");
-			primaryStage.setScene(scene);
+			primaryStage.setScene(GlobalView.createView());
 			primaryStage.show();
 			primaryStage.setOnCloseRequest(event -> ConnectionTimer.stop());
 		} catch (Throwable th) {
