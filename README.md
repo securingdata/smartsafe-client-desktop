@@ -57,10 +57,10 @@ The following features are already developed:
  - Ability to perform card content management
  - Search engine in the rich interface
  - Secure messaging between the Client and the Server in order to avoid Man-in-the-middle and replay attacks
+ - Ability to retrieve information about memory usage in the smart card and other useful stats
 
 The following features are intended to be developed:
 
- - Ability to retrieve information about memory usage in the smart card and other useful stats
  - Adding help content in the rich interface
  - Synchronization between two tokens
  - Stream cipher
