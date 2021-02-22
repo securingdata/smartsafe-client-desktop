@@ -1,5 +1,5 @@
 package smartsafe;
 
 public interface Version {
-	public String version = "0.9.5";
+	public String version = "0.9.6";
 }

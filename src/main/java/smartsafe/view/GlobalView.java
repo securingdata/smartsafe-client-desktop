@@ -93,6 +93,7 @@ import smartsafe.Prefs;
 import smartsafe.Version;
 import smartsafe.comm.SmartSafeAppli;
 import smartsafe.controller.Controls;
+import smartsafe.controller.EntryReader;
 import smartsafe.model.Entry;
 import util.Crypto;
 import util.ResourcesManager;
@@ -229,18 +230,19 @@ public class GlobalView {
             }
         });
 		searchField.textProperty().addListener((observable, oldValue, newValue) -> {
-			
 			Controls.selectGroup(null);
 			if (newValue.isEmpty())
 				return;
+			EntryReader.newQueue();
 			newValue = normalise(newValue);
 			Map<String, Entry> map = new HashMap<>();
 			for (String group : Controls.getAppli().getGroups()) {
 				for (Entry e : Controls.getAppli().getEntries(group, true)) {
 					String tmp = normalise(e.getIdentifier().get());
-					if (tmp.contains(newValue))
+					if (tmp.contains(newValue)) {
 						GlobalView.getTableEntries().getItems().add(e);
-					else
+						EntryReader.readEntry(e);
+					} else
 						map.put(tmp, e);//for search with typo
 				}
 			}
@@ -253,9 +255,10 @@ public class GlobalView {
 				Map<String, Entry> newMap = new HashMap<>();
 				for (Map.Entry<String, Entry> mapEntry : map.entrySet()) {
 					String regex = ".*" + newValue.substring(0, i) + "." + newValue.substring(i + 1) + ".*";
-					if (mapEntry.getKey().matches(regex))
+					if (mapEntry.getKey().matches(regex)) {
 						GlobalView.getTableEntries().getItems().add(mapEntry.getValue());
-					else
+						EntryReader.readEntry(mapEntry.getValue());
+					} else
 						newMap.put(mapEntry.getKey(), mapEntry.getValue());
 				}
 				map = newMap;
@@ -308,13 +311,14 @@ public class GlobalView {
 				ViewUtils.entrySelected.set(newValue != null);
 				if (oldValue != null)
 					oldValue.maskPassword();
-				if (newValue == null) {
-					lastUpdate.setText("-");
-					expiresOn.setText("-");
-					notes.setText("");
-				}
-				else {
-					lastUpdate.setText(formatDate(newValue.getLastUpdate().get()));
+				lastUpdate.setText("-");
+				expiresOn.setText("-");
+				notes.setText("");
+				if (newValue != null) {
+					EntryReader.newQueue();
+					EntryReader.readEntry(newValue);
+					if (newValue.getLastUpdate().get() != null)
+						lastUpdate.setText(formatDate(newValue.getLastUpdate().get()));
 					if (newValue.getExpiresDate().get() == null)
 						expiresOn.setText(Messages.get("DETAILS_NEVER"));
 					else {
@@ -326,7 +330,8 @@ public class GlobalView {
 							expiresOn.setTextFill(Color.BLACK);
 						}
 					}
-					notes.setText(newValue.getNotes().get());
+					if(newValue.getNotes().get() != null)
+						notes.setText(newValue.getNotes().get());
 				}
 			});
 		}
@@ -785,11 +790,13 @@ public class GlobalView {
 		dialog.setTitle(Messages.get("BACKUP_RESTORE_DIALOG"));
 		dialog.setHeaderText(null);
 		
-		ButtonType backup = new ButtonType(Messages.get("BACKUP_BACKUP"), ButtonData.OK_DONE);
-		ButtonType restore = new ButtonType(Messages.get("BACKUP_RESTORE"), ButtonData.OK_DONE);
+		ButtonType action;
+		if (root.getChildren().isEmpty())
+			action = new ButtonType(Messages.get("BACKUP_RESTORE"), ButtonData.OK_DONE);
+		else
+			action = new ButtonType(Messages.get("BACKUP_BACKUP"), ButtonData.OK_DONE);
 		ButtonType close = new ButtonType(Messages.get("BACKUP_CANCEL"), ButtonData.CANCEL_CLOSE);
-		dialog.getDialogPane().getButtonTypes().addAll(backup, restore, close);
-		
+		dialog.getDialogPane().getButtonTypes().addAll(action, close);
 		
 		TextField file = new TextField();
 		file.setPrefWidth(250);
@@ -797,7 +804,11 @@ public class GlobalView {
 		browse.setOnAction(event -> {
 			FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle(Messages.get("BACKUP_CHOOSE"));
-			File tmp = fileChooser.showSaveDialog((Stage) dialog.getDialogPane().getScene().getWindow());
+			File tmp;
+			if (root.getChildren().isEmpty())
+				tmp = fileChooser.showOpenDialog((Stage) dialog.getDialogPane().getScene().getWindow());
+			else
+				tmp = fileChooser.showSaveDialog((Stage) dialog.getDialogPane().getScene().getWindow());
 			if (tmp != null) {
 				file.setText(tmp.getAbsolutePath());
 			}
@@ -824,25 +835,21 @@ public class GlobalView {
 			gp.add(show.isSelected() ? password2 : password, 1, 1);
 		});
 		
-		Node backupButton = dialog.getDialogPane().lookupButton(backup);
-		backupButton.setDisable(true);
-		Node restoreButton = dialog.getDialogPane().lookupButton(restore);
-		restoreButton.setDisable(true);
+		Node actionButton = dialog.getDialogPane().lookupButton(action);
+		actionButton.setDisable(true);
 
 		file.textProperty().addListener((observable, oldValue, newValue) -> {
-			backupButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
-			restoreButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
+			actionButton.setDisable(newValue.isEmpty() || password.getText().isEmpty());
 		});
 		password.textProperty().addListener((observable, oldValue, newValue) -> {
-			backupButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
-			restoreButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
+			actionButton.setDisable(newValue.isEmpty() || file.getText().isEmpty());
 		});
 
 		dialog.getDialogPane().setContent(new VBox(4, gp));
 		Platform.runLater(() -> file.requestFocus());
 		
 		dialog.setResultConverter(dialogButton -> {
-			if (dialogButton == backup || dialogButton == restore) {
+			if (dialogButton == action) {
 				return new String[] {file.getText(), password.getText(), dialogButton.getText()};
 			}
 			return null;
@@ -1151,6 +1158,12 @@ public class GlobalView {
 					pb.setProgress(0.9, Messages.get("MANAGE_LOAD_4"));
 					gpc.installForInstallAndMakeSelectable(packAid, appAid, appAid, "", "");
 					pb.setProgress(1, Messages.get("MANAGE_LOAD_5"));
+					
+					SmartSafeAppli appli = new SmartSafeAppli(readerList.getSelectionModel().getSelectedItem());
+					appli.coldReset();
+					appli.select();
+					appli.changePin("password");
+					appli.disconnect();
 				} catch (GPException e) {
 					sp.set(e.getMessage());
 					pb.setProgress(1, Messages.get("MANAGE_LOAD_6"));
@@ -1277,9 +1290,24 @@ public class GlobalView {
 		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(ok);
 		
-		int freeSpace = appli.getAivailableMemory();
-		int usedSpace = 0;
+		ProgressDialog d = new ProgressDialog(Messages.get("PROP_LOADING"), Images.PROPERTIES);
 		Map<String, Short> footprints = new HashMap<>();
+		
+		if (EntryReader.getRemaining() != 0) {
+			new Thread((Runnable) () -> {
+				int remaining = EntryReader.getRemaining();
+				double total = remaining;
+				do {
+					d.setProgress(1.0 * ((total - remaining) / total));
+					try {
+						Thread.sleep(500);
+					} catch (InterruptedException e) {}
+				} while ((remaining = EntryReader.getRemaining()) != 0);
+				d.closeDialog();
+			}).start();
+			d.showAndWait();
+		}
+		
 		for (String group : appli.getGroups()) {
 			short groupSize = 0;
 			for (Entry e : appli.getEntries(group, true)) {
@@ -1288,11 +1316,17 @@ public class GlobalView {
 				groupSize += e.getPassword().getValue().length();
 				groupSize += e.getUrl().getValue().length();
 				groupSize += e.getNotes().getValue().length();
-				groupSize += 20;//Dates
+				groupSize += 20;//~Dates
 			}
 			footprints.put(group, Short.valueOf(groupSize));
-			usedSpace += groupSize;
 		}
+		
+		int freeSpace = appli.getAivailableMemory();
+		int usedSpace = 1;
+		for (Map.Entry<String, Short> e : footprints.entrySet()) {
+			usedSpace += e.getValue();
+		}
+		
 		double totalSpace = freeSpace + usedSpace;
 		ObservableList<PieChart.Data> pieChartData =
                 FXCollections.observableArrayList(

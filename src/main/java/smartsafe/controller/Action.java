@@ -1,18 +1,16 @@
 package smartsafe.controller;
 
-import java.util.List;
-
 public class Action {
 	public interface Executable {
-		void run(List<Object> params);
+		void run(Object[] params);
 	}
 	
 	public String name;
 	public final boolean undoable;
-	private List<Object> params;
+	private Object[] params;
 	private Executable exec;
 	
-	public Action(String name, boolean undoable, List<Object> params, Executable exec) {
+	public Action(String name, boolean undoable, Object[] params, Executable exec) {
 		this.name = name;
 		this.undoable = undoable;
 		this.params = params;

@@ -34,6 +34,10 @@ public class ProgressDialog extends Dialog<Object> {
 	public void showDialog() {
 		Platform.runLater(() -> show());
 	}
+	public void closeNow() {
+		allowClose();
+		close();
+	}
 	public void closeDialog() {
 		Platform.runLater(() -> {
 			allowClose();

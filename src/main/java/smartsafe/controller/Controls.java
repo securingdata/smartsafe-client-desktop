@@ -6,6 +6,7 @@ import java.awt.datatransfer.StringSelection;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 import javax.smartcardio.CardTerminal;
 
@@ -47,24 +48,51 @@ public class Controls {
 		if (appli == null) {
 			Object[] values = GlobalView.connectDialog();
 			
-			if (values != null) {
-				createAppli((CardTerminal) values[0], (String) values[1]);
+			if (values != null) {//User has validated its entry
+				ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
+				d.show();
+				
+				appli = new SmartSafeAppli((CardTerminal) values[0]);
+				try {
+					appli.coldReset();
+					APDUResponse resp = appli.select();
+					if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+						d.closeNow();
+						GlobalView.errorDialog(Messages.get("CONNECT_NO_APP"));
+						appli = null;
+					}
+					else {
+						resp = appli.authenticate((String) values[1]);
+						if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
+							d.closeNow();
+							GlobalView.errorDialog(Messages.get("CONNECT_ERROR") + (int) (resp.getStatusWord() & 0xF));
+							appli.disconnect();
+							appli = null;
+						}
+					}
+				} catch (GPException e) {
+					d.closeNow();
+					appli = null;
+				}
+				
 				if (appli != null) {
 					Prefs.put(Prefs.KEY_READER, ((CardTerminal) values[0]).toString());
-					
-					ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
-					d.showDialog();
 					
 					new Thread((Runnable) () -> {
 						double delta = 1d / appli.getGroups().size();
 						for (String group : appli.getGroups()) {
-							appli.getEntries(group, true);
+							appli.getEntries(group);
+							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
 							d.addProgress(delta);
 						}
-						d.closeDialog();
+						
+						//Avoid concurrent exception: use a dedicated for loop
 						for (String group : appli.getGroups()) {
-							GlobalView.getGroups().getChildren().add(new TreeItem<String>(group));
+							for (Entry e : appli.getEntries(group, true))
+								EntryReader.readEntry(e);
 						}
+						EntryReader.setInitialized();
+						d.closeDialog();
 						ConnectionTimer.start();
 					}).start();
 				}
@@ -100,9 +128,11 @@ public class Controls {
 	public static final String NEW_GROUP = Messages.get("NEW_GROUP");
 	public static final Action ACTION_NEW_GROUP = new Action(NEW_GROUP, false, null, params -> {
 		ConnectionTimer.restart();
-		String name = GlobalView.newGroupDialog();
+		final String name = GlobalView.newGroupDialog();
 		if (name != null) {
+			EntryReader.suspendReader();
 			short sw = appli.createGroup((byte) 32, name, true).getStatusWord();
+			EntryReader.restartReader();
 			if (sw == SmartSafeAppli.SW_NO_ERROR) {
 				GlobalView.getGroups().getChildren().add(new TreeItem<String>(name));
 			}
@@ -119,6 +149,9 @@ public class Controls {
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
 		ConnectionTimer.restart();
 		String[] data = GlobalView.entryDialog(null);
+		
+		EntryReader.suspendReader();
+		appli.selectGroup(GlobalView.getGroupsView().getSelectionModel().getSelectedItem().getValue());
 		Entry entry = new Entry(appli.getSelectedGroup(), data[0], data[1]);
 		short sw = appli.addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
 		if (sw == SmartSafeAppli.SW_FILE_FULL) {
@@ -139,6 +172,7 @@ public class Controls {
 			appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
 		appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
 		appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
+		EntryReader.restartReader();
 	});
 	
 	public static final String DELETE = Messages.get("DELETE");
@@ -149,10 +183,18 @@ public class Controls {
 			Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
 			Object response = GlobalView.deleteDialog(group, e);
 			if (response != null) {
-				if (response instanceof String)
+				EntryReader.suspendReader();
+				if (response instanceof String) {
+					for (Entry entry : appli.getEntries((String) response, true))
+						EntryReader.removeEntry(entry);
 					appli.deleteGroup((String) response);
-				else if (response instanceof Entry)
-					appli.deleteEntry((Entry) response);
+				}
+				else if (response instanceof Entry) {
+					EntryReader.removeEntry(e);
+					appli.selectGroup(group.getValue());
+					appli.deleteEntry(e);
+				}
+				EntryReader.restartReader();
 			}
 		}
 	});
@@ -161,8 +203,11 @@ public class Controls {
 	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
 		ConnectionTimer.restart();
 		String pin = GlobalView.changePINDialog();
-		if (pin != null)
+		if (pin != null) {
+			EntryReader.suspendReader();
 			appli.changePin(pin);
+			EntryReader.restartReader();
+		}
 	});
 	
 	public static final String BACKUP = Messages.get("BACKUP");
@@ -194,22 +239,26 @@ public class Controls {
 	public static final String EDIT = Messages.get("EDIT");
 	public static final Action ACTION_EDIT = new Action(EDIT, false, null, params -> {
 		ConnectionTimer.restart();
-		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		Entry e = getCurrentSelectedEntryForUse();
+		EntryReader.suspendReader();
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
 		final String oldPass = e.getPassword().get();
 		String[] data = GlobalView.entryDialog(e);
-		if (!data[Entry.INDEX_PASSWORD + 2].equals(oldPass)) {
-			appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
-			appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
-		}
 		e.maskPassword();
-		if (data[Entry.INDEX_EXP_DATE + 2] != null)
-			appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
-		appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
-		appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
-		
+		if (data != null) {
+			if (!data[Entry.INDEX_PASSWORD + 2].equals(oldPass)) {
+				appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
+				appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
+			}
+			e.maskPassword();
+			if (data[Entry.INDEX_EXP_DATE + 2] != null)
+				appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
+			appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
+			appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
+		}
+		EntryReader.restartReader();
 		GlobalView.getTableEntries().getSelectionModel().select(null);
 		GlobalView.getTableEntries().getSelectionModel().select(e);
 	});
@@ -217,7 +266,7 @@ public class Controls {
 	public static final String GOTO = Messages.get("GOTO");
 	public static final Action ACTION_GOTO = new Action(GOTO, false, null, params -> {
 		ConnectionTimer.restart();
-		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		Entry e = getCurrentSelectedEntryForUse();
 		try {
 			java.awt.Desktop.getDesktop().browse(new URI(e.getUrl().get()));
 		}
@@ -229,7 +278,7 @@ public class Controls {
 	public static final Action ACTION_COPY_USER = new Action(COPY_USER, false, null, params -> {
 		ConnectionTimer.restart();
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		Entry e = getCurrentSelectedEntryForUse();
 		clipboard.setContents(new StringSelection(e.getUserName().get()), null);
 	});
 	
@@ -237,10 +286,12 @@ public class Controls {
 	public static final Action ACTION_COPY_PASS = new Action(COPY_PASS, false, null, params -> {
 		ConnectionTimer.restart();
 		Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		Entry e = getCurrentSelectedEntryForUse();
+		EntryReader.suspendReader();
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
+		EntryReader.restartReader();
 		clipboard.setContents(new StringSelection(e.getPassword().get()), null);
 		e.maskPassword();
 	});
@@ -248,10 +299,12 @@ public class Controls {
 	public static final String SHOW_PASS = Messages.get("SHOW_PASS");
 	public static final Action ACTION_SHOW_PASS = new Action(SHOW_PASS, false, null, params -> {
 		ConnectionTimer.restart();
-		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		Entry e = getCurrentSelectedEntryForUse();
+		EntryReader.suspendReader();
 		appli.selectGroup(e.group);
 		appli.selectEntry(e);
 		appli.getData(Entry.INDEX_PASSWORD);
+		EntryReader.restartReader();
 	});
 	
 	public static final String HELP = Messages.get("HELP");
@@ -379,25 +432,6 @@ public class Controls {
 		ViewUtils.entrySelected.set(false);
 	}
 	
-	private static void createAppli(CardTerminal reader, String password) {
-		appli = new SmartSafeAppli(reader);
-		try {
-			appli.coldReset();
-			APDUResponse resp = appli.select();
-			if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
-				GlobalView.errorDialog(Messages.get("CONNECT_NO_APP"));
-				appli = null;
-				return;
-			}
-			resp = appli.authenticate(password);
-			if (resp.getStatusWord() == (short) SmartSafeAppli.SW_NO_ERROR)
-				return;
-			else
-				GlobalView.errorDialog(Messages.get("CONNECT_ERROR") + (int) (resp.getStatusWord() & 0xF));
-			appli.disconnect();
-		} catch (GPException e) {}
-		appli = null;
-	}
 	public static void selectGroup(String groupName) {
 		ViewUtils.groupSelected.set(groupName != null);
 		GlobalView.getTableEntries().getItems().clear();
@@ -406,6 +440,20 @@ public class Controls {
 			return;
 		}
 		
-		GlobalView.getTableEntries().getItems().addAll(appli.getEntries(groupName, true));
+		List<Entry> entries = appli.getEntries(groupName, true);
+		GlobalView.getTableEntries().getItems().addAll(entries);
+		EntryReader.newQueue();
+		for(Entry e : entries)
+			EntryReader.readEntry(e);
+	}
+	
+	private static Entry getCurrentSelectedEntryForUse() {
+		Entry e = GlobalView.getTableEntries().getSelectionModel().getSelectedItem();
+		while (!e.isInCache()) {
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException ex) {}
+		}
+		return e;
 	}
 }

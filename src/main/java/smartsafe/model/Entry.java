@@ -17,6 +17,7 @@ public class Entry {
 	public static final byte NB_PROPERTIES = (byte) 5;
 	
 	public final String group;
+	private volatile boolean inCache;
 	private StringProperty identifier;
 	private StringProperty userName;
 	private StringProperty password;
@@ -26,6 +27,7 @@ public class Entry {
 	private StringProperty notes;
 	
 	public Entry(String group) {
+		inCache = false;
 		this.group = group;
 		this.identifier = new SimpleStringProperty("");
 		this.userName = new SimpleStringProperty("");
@@ -47,6 +49,13 @@ public class Entry {
 		this(group, identifierAndUserName[0], identifierAndUserName[1]);
 	}
 
+	public boolean isInCache() {
+		return inCache;
+	}
+	public void validate() {
+		inCache = true;
+	}
+	
 	public String getFullIdentifier() {
 		return identifier.get() + SEPARATOR + userName.get();
 	}

@@ -14,6 +14,7 @@ import connection.APDUResponse;
 import connection.loader.GPException;
 import connection.loader.SCP03;
 import smartsafe.Prefs;
+import smartsafe.controller.ConnectionTimer;
 import smartsafe.model.Entry;
 import util.Crypto;
 import util.StringHex;
@@ -35,6 +36,9 @@ public class SmartSafeAppli extends SCP03 {
 	public String getSelectedGroup() {
 		return selectedGroup;
 	}
+	public Entry getSelectedEntry() {
+		return selectedEntry;
+	}
 	public Set<String> getGroups() {
 		if (groups == null) {
 			groups = new HashMap<String, List<Entry>>();
@@ -51,31 +55,25 @@ public class SmartSafeAppli extends SCP03 {
 		}
 		return groups.keySet();
 	}
-	public List<Entry> getEntries(String group, boolean maskPassword) {
-		selectGroup(group);
+	public List<Entry> getEntries(String group) {
 		List<Entry> list = groups.get(group);
-		if (list.isEmpty()) {
-			APDUResponse resp;
-			byte p1 = 0;
-			do {
-				resp = listEntries(p1);
-				for (String entry : parseList(resp.getData())) {
-					Entry e = new Entry(group, entry.split(Entry.SEPARATOR));
-					selectEntry(e);
-					getData(Entry.INDEX_PASSWORD);
-					getData(Entry.INDEX_URL);
-					getData(Entry.INDEX_lAST_UPDATE);
-					getData(Entry.INDEX_EXP_DATE);
-					getData(Entry.INDEX_NOTES);
-					if (maskPassword)
-						e.maskPassword();
-					list.add(e);
-				}
-				p1 = (byte) list.size();
-			} while (resp.getStatusWord() == SW_DATA_REMAINING);
-		}
-		else if (!maskPassword) {//Passwords have to be read
+		selectGroup(group);
+		APDUResponse resp;
+		byte p1 = 0;
+		do {
+			resp = listEntries(p1);
+			for (String entry : parseList(resp.getData())) {
+				list.add(new Entry(group, entry.split(Entry.SEPARATOR)));
+			}
+			p1 = (byte) list.size();
+		} while (resp.getStatusWord() == SW_DATA_REMAINING);
+		return list;
+	}
+	public List<Entry> getEntries(String group, boolean maskPassword) {
+		List<Entry> list = groups.get(group);
+		if (!maskPassword) {//Passwords have to be read
 			for (Entry e : list) {
+				selectGroup(group);
 				selectEntry(e);
 				getData(Entry.INDEX_PASSWORD);
 			}
@@ -103,6 +101,7 @@ public class SmartSafeAppli extends SCP03 {
 	}
 	
 	public APDUResponse send(String cmdName, String header, String data, String le) {
+		ConnectionTimer.restart();
 		try {
 			return super.send(cmdName, header, data, le);
 		} catch (GPException e) {
@@ -224,7 +223,7 @@ public class SmartSafeAppli extends SCP03 {
 	public APDUResponse setData(byte indexData, String data, boolean addInternal) {
 		if (data == null)
 			data = "";
-		if (addInternal) {
+		if (addInternal && !data.isEmpty()) {
 			switch (indexData) {
 				case Entry.INDEX_PASSWORD:
 					selectedEntry.setPassword(data);
