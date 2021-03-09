@@ -1,0 +1,16 @@
+/*CSS for dark theme*/
+
+html {
+	font-family: Segoe UI;
+	background-color: #373e43;
+	color: lightgray;
+}
+h1 {
+	color: #6495ED;
+}
+p {
+	text-align: justify;
+}
+a {
+	color: #3368FF;
+}

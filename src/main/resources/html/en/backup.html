@@ -1,15 +1,32 @@
 <html>
 	<link rel="stylesheet" href="../static/0.css">
 	
-	<h1>Backup</h1>
+	<h1>Backup or restore data</h1>
 	<p>
 		Doing backup is strongly recommended. Backup allow to recover your data when (for instance) you lose or break your token.
-		A backup file can be used at personalization time on an empty token only.
+		A backup file can be used on an empty token only.
+		When selecting the menu entry 'Backup', two reactions are possible (the difference can be seen on the validation button):
+		<ul>
+			<li>If there is at least one Group created into the token, the 'Backup' window is opened.</li>
+			<li>If there is no Group created into the token, the 'Restore' window is opened.</li>
+		</ul>
 	</p>
 	
+	<h2>Backuping data</h2>
 	<img src="static/backup0.png">
 	<p>
 		Select the location where the backup will be done and provide a password that will be used to cipher the backup file.
-		After clicking on 'Do backup' button, wait for the 'Data saved !' message before closing the window.
+		After clicking on 'Backup from token' button, a progress window will be showed until backup process ends. If any error occurs during
+		backup, it will be shown into the progress bar and the progress window will not be automatically closed. Otherwise, the progress
+		window closes itself automatically at the end of the process.
+	</p>
+	
+	<h2>Restoring data</h2>
+	<img src="static/backup1.png">
+	<p>
+		Select the location from where the backup will be read and provide a password that will be used to decipher the backup file.
+		After clicking on 'Restore token' button, a progress window will be showed until restore process ends. If any error occurs during
+		restoration, it will be shown into the progress bar and the progress window will not be automatically closed. Otherwise, the progress
+		window closes itself automatically at the end of the process.
 	</p>
 </html>

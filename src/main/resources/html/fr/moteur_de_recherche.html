@@ -1,0 +1,32 @@
+<html>
+	<link rel="stylesheet" href="../static/0.css">
+	
+	<h1>Moteur de recherche</h1>
+	<p>
+		Pour rechercher facilement vos Entr&eacute;es sans avoir &agrave; naviguer dans tous vos Groupes, un moteur de recherche est
+		disponible au travers du raccourci 'Ctrl-F' ou en cliquant sur la barre de recherche pr&eacute;sente en haut &agrave; droite
+		de la fen&ecirc;tre.
+	</p>
+	<p>
+		La recherche es effectu&eacute;e dynamiquement d&egrave;s qu'un caract&egrave;re est entr&eacute; dans le champ de recherche. Appuyer
+		sur 'Entr&eacute;e' s&eacute;lectionnera la premi&egrave;re Entr&eacute;e trouv&eacute;e.
+	</p>
+	<p>
+		La recherche est bas&eacute;e sur la valeur de 'Identifiant' et 'Nom d'utilisateur' de chaque Entr&eacute;e. L'algorithme de recherche
+		est divis&eacute; en deux parties :
+		<ul>
+			<li>
+				Les Entr&eacute;es qui contiennent la s&eacute;quence exacte fournie dans le champ de recherche sont affich&eacute;es.
+				L'algorithme n'est pas sensible &agrave; la casse ni aux accents.
+				L'ordre d'affichage est bas&eacute; sur l'ordre des Groupes et de l'ordre de l'Entr&eacute;e dans le Groupe.
+			</li>
+			<li>
+				Lorsque le champ de recherche contient au moins trois caract&egrave;res, une seconde recherche est effectu&eacute;e
+				en consid&eacute;rant que l'utilisateur a fait une erreur dans le texte fourni pour effectuer la recherche.
+				Les Entr&eacute;es trouv&eacute;es avec cette deuxi&egrave;me m&eacute;thode sont ajout&eacute;es apr&egrave;s celles 
+				trouv&eacute;es avec la premi&egrave;re. L'ordre d'affichage est le m&ecirc;me que celui d&eacute;crit dans la 
+				premi&egrave;re m&eacute;thode.
+			</li>
+		</ul>
+	</p>
+</html>

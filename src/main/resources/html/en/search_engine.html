@@ -1,0 +1,29 @@
+<html>
+	<link rel="stylesheet" href="../static/0.css">
+	
+	<h1>Search engine</h1>
+	<p>
+		In order to easily find your Entries without having to navigate into all your Groups, a search engine is available 
+		through the keystroke 'Ctrl-F' or by clicking in the search field present at the right top of the window.
+	</p>
+	<p>
+		The search is performed dynamically as soon as a character is typed into the search field. Pressing 'Enter' will select the first 
+		Entry found.
+	</p>
+	<p>
+		The search is based on the content of 'Identifier' and 'User name' values of each Entry. The search algorithm is split in two parts:
+		<ul>
+			<li>
+				Entries that contain the exact sequence provided in the search field are first displayed.
+				The algorithm is not case sensitive.
+				The display order is based on the Group order and the Entry order in the Group.
+			</li>
+			<li>
+				When the search field contains at least three characters, then a second search is performed taking in account that
+				user may have performed a typo error when providing the search text. Entries found by this method are displayed after
+				Entries that have been found to perfectly match with the provided search text. The display order is the same as the one
+				described for the first part.
+			</li>
+		</ul>
+	</p>
+</html>

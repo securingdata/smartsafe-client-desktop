@@ -87,11 +87,12 @@ public class Controls {
 						}
 						
 						//Avoid concurrent exception: use a dedicated for loop
+						EntryReader.setAllowReaderCreation(true);
 						for (String group : appli.getGroups()) {
 							for (Entry e : appli.getEntries(group, true))
 								EntryReader.readEntry(e);
 						}
-						EntryReader.setInitialized();
+						EntryReader.setAllowReaderCreation(false);
 						d.closeDialog();
 						ConnectionTimer.start();
 					}).start();
@@ -149,30 +150,32 @@ public class Controls {
 	public static final Action ACTION_NEW_ENTRY = new Action(NEW_ENTRY, false, null, params -> {
 		ConnectionTimer.restart();
 		String[] data = GlobalView.entryDialog(null);
-		
-		EntryReader.suspendReader();
-		appli.selectGroup(GlobalView.getGroupsView().getSelectionModel().getSelectedItem().getValue());
-		Entry entry = new Entry(appli.getSelectedGroup(), data[0], data[1]);
-		short sw = appli.addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
-		if (sw == SmartSafeAppli.SW_FILE_FULL) {
-			GlobalView.errorDialog(Messages.get("ENTRY_ERROR_1"));
-			return;
+		if (data != null) {
+			EntryReader.suspendReader();
+			appli.selectGroup(GlobalView.getGroupsView().getSelectionModel().getSelectedItem().getValue());
+			Entry entry = new Entry(appli.getSelectedGroup(), data[0], data[1]);
+			short sw = appli.addEntry(Entry.NB_PROPERTIES, entry, true).getStatusWord();
+			if (sw == SmartSafeAppli.SW_FILE_FULL) {
+				GlobalView.errorDialog(Messages.get("ENTRY_ERROR_1"));
+				return;
+			}
+			else if (sw != SmartSafeAppli.SW_NO_ERROR) {
+				GlobalView.errorDialog(Messages.get("ENTRY_ERROR_2") + new StringHex(sw).toString());
+				return;
+			}
+			GlobalView.getTableEntries().getItems().add(entry);
+			if (data[Entry.INDEX_PASSWORD + 2].length() != 0) {
+				appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
+				appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
+				entry.maskPassword();
+			}
+			if (data[Entry.INDEX_EXP_DATE + 2] != null)
+				appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
+			appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
+			appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
+			entry.validate();
+			EntryReader.restartReader();
 		}
-		else if (sw != SmartSafeAppli.SW_NO_ERROR) {
-			GlobalView.errorDialog(Messages.get("ENTRY_ERROR_2") + new StringHex(sw).toString());
-			return;
-		}
-		GlobalView.getTableEntries().getItems().add(entry);
-		if (data[Entry.INDEX_PASSWORD + 2].length() != 0) {
-			appli.setData(Entry.INDEX_PASSWORD, data[Entry.INDEX_PASSWORD + 2], true);
-			appli.setData(Entry.INDEX_lAST_UPDATE, data[Entry.INDEX_lAST_UPDATE + 2], true);
-			entry.maskPassword();
-		}
-		if (data[Entry.INDEX_EXP_DATE + 2] != null)
-			appli.setData(Entry.INDEX_EXP_DATE, data[Entry.INDEX_EXP_DATE + 2], true);
-		appli.setData(Entry.INDEX_URL, data[Entry.INDEX_URL + 2], true);
-		appli.setData(Entry.INDEX_NOTES, data[Entry.INDEX_NOTES + 2], true);
-		EntryReader.restartReader();
 	});
 	
 	public static final String DELETE = Messages.get("DELETE");
@@ -267,11 +270,13 @@ public class Controls {
 	public static final Action ACTION_GOTO = new Action(GOTO, false, null, params -> {
 		ConnectionTimer.restart();
 		Entry e = getCurrentSelectedEntryForUse();
-		try {
-			java.awt.Desktop.getDesktop().browse(new URI(e.getUrl().get()));
+		if (e.getUrl().get() != null) {
+			try {
+				java.awt.Desktop.getDesktop().browse(new URI(e.getUrl().get()));
+			}
+			catch (IOException e1) {}
+			catch (URISyntaxException e1) {}
 		}
-		catch (IOException e1) {}
-		catch (URISyntaxException e1) {}
 	});
 	
 	public static final String COPY_USER = Messages.get("COPY_USER");

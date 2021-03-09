@@ -106,7 +106,7 @@ public final class ResourcesManager {
 			}
 		}
 	}
-	public static Path initHtmlDirectory() {
+	public static Path initHtmlDirectory(boolean darkTheme) {
 		URL url = getURLFile("html/");
 		if (url == null)
 			return null;
@@ -125,6 +125,10 @@ public final class ResourcesManager {
 		try {
 			staticDir = Files.createDirectory(Paths.get(dir.toString(), "static"));
 			copyStaticDir("html/static/", "", staticDir.toString());
+			if (darkTheme) {
+				staticDir.resolve("0.css").toFile().delete();//Remove classic css theme
+				staticDir.resolve("1.css").toFile().renameTo(staticDir.resolve("0.css").toFile());//Help pages use 0.css for theme
+			}
 		} catch (IOException e) {
 			return null;
 		}

@@ -89,10 +89,10 @@ public class EntryReader {
 		}
 	}
 	private static Reader reader;
-	private static boolean initialized = false;
+	private static boolean allowReaderCreation = false;
 	
-	public static void setInitialized() {
-		initialized = true;
+	public static void setAllowReaderCreation(boolean allow) {
+		allowReaderCreation = allow;
 	}
 	public static int getRemaining() {
 		if (reader != null)
@@ -101,7 +101,7 @@ public class EntryReader {
 	}
 	public static void readEntry(Entry e) {
 		if (reader == null) {
-			if (initialized)//When initialized is true, Reader is not instanciated anymore
+			if (!allowReaderCreation)
 				return;
 			reader = new Reader();
 			reader.addEntry(e);

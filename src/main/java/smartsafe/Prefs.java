@@ -37,7 +37,7 @@ public interface Prefs {
 	
 	
 	static Locale prefToLocale() {
-		switch(myPrefs.get(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE)) {
+		switch(get(Prefs.KEY_LANGUAGE)) {
 			default:
 			case "English":
 				return Locale.ENGLISH;

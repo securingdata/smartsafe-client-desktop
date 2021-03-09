@@ -6,10 +6,14 @@ import smartsafe.Prefs;
 public class ConnectionTimer {
 	private static class Timer extends Thread {
 		public boolean stop;
-		private int remainingTime;
+		private volatile int remainingTime;
 		
 		public Timer(int time) {
-			this.remainingTime = time;
+			setTime(time);
+		}
+		
+		public synchronized void setTime(int time) {
+			remainingTime = time;
 		}
 		
 		public void run() {
@@ -17,7 +21,7 @@ public class ConnectionTimer {
 			while(!stop && remainingTime > 0) {
 				try {
 					Thread.sleep(Math.min(5000, remainingTime * 1000));
-					remainingTime -= 5;
+					setTime(remainingTime - 5);
 				} catch (InterruptedException e) {}
 			}
 			if (!stop) {
@@ -39,8 +43,7 @@ public class ConnectionTimer {
 	}
 	public static void restart() {
 		if (timer != null) {
-			stop();
-			start();
+			timer.setTime(Integer.parseInt(Prefs.get(Prefs.KEY_TIMER)));
 		}
 	}
 	public static void stop() {

@@ -1243,10 +1243,12 @@ public class GlobalView {
 		gp.add(theme, 1, 1);
 		gp.add(new Label(Messages.get("PREFS_CHARS")), 0, 2);
 		gp.add(chars, 1, 2);
-		gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 3);
-		gp.add(pckgAid, 1, 3);
-		gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 4);
-		gp.add(appAidSuffix, 1, 4);
+		if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
+			gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 3);
+			gp.add(pckgAid, 1, 3);
+			gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 4);
+			gp.add(appAidSuffix, 1, 4);
+		}
 		gp.add(new Label(Messages.get("PREFS_TIMER")), 0, 5);
 		gp.add(timer, 1, 5);
 
@@ -1257,18 +1259,23 @@ public class GlobalView {
 				Prefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
 				Prefs.put(Prefs.KEY_THEME, theme.getSelectionModel().getSelectedItem());
 				Prefs.put(Prefs.KEY_CHARS, chars.getText());
-				Prefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
-				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
+				if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
+					Prefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
+					Prefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
+				}
 				Prefs.put(Prefs.KEY_TIMER, timer.getValue().toString());
 			}
 			else if (dialogButton == reset) {
 				Prefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
 				Prefs.put(Prefs.KEY_THEME, Prefs.DEFAULT_THEME);
 				Prefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
-				Prefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
-				Prefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
+				if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
+					Prefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
+					Prefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
+				}
 				Prefs.put(Prefs.KEY_TIMER, Prefs.DEFAULT_TIMER);
 			}
+			Help.clearCache();
 			Messages.reloadMessages();
 			updateTheme();
 			return null;

@@ -1,17 +1,36 @@
 <html>
 	<link rel="stylesheet" href="../static/0.css">
 	
-	<h1>Sauvegarde</h1>
+	<h1>Sauvegarder ou restaurer les don&eacute;es</h1>
 	<p>
 		Il est vivement recommend&eacute; de faire des sauvegardes r&eacute;guli&egrave;res. Les sauvegardes permettent de restaurer vos donn&eacute;s quand 
-		(par exemple) vous perdez ou bloquez votre cl&eacute;. Les fichiers de sauvegarde peuvent &ecirc;tre utilis&eacute;s lors de la phase d'initialisation
+		(par exemple) vous perdez ou bloquez votre cl&eacute;. Les fichiers de sauvegarde ne peuvent &ecirc;tre utilis&eacute;s que
 		sur un token vide.
+		Lorsque l'entr&eacute;e du menu 'Sauvegarde' est s&eacute;lectionn&eacute;e, deux r&eacute;actions sont possibles (la diff&eacute;rence se voit 
+		sur le bouton de validation) :
+		<ul>
+			<li>Si au minimum un Groupe est pr&eacute;sent sur le token, la fen&ecirc;tre 'Sauvegarder' est ouverte.</li>
+			<li>Si aucun Groupe n'existe sur le token, la fen&ecirc;tre 'Restaurer' est ouverte.</li>
+		</ul>
 	</p>
 	
+	<h2>Sauvegarder les donn&eacute;es</h2>
 	<img src="static/sauvegarde0.png">
 	<p>
-		S&eacute;lectionez l'endroit o&ugrave; enregistrer la sauvegarde et entrez le mot de passe qui prot&egrave;gera le fichier par chifrement.
-		Apr&egrave;s avoir cliqu&eacute; sur le bouton 'Sauvegarder', attendre le message 'Donn&eacute;es sauvegard&eacute;es !' avant de 
-		fermer la fen&ecirc;tre.
+		S&eacute;lectionez l'endroit o&ugrave; enregistrer la sauvegarde et entrez le mot de passe qui prot&egrave;gera le fichier par 
+		chifrement. Apr&egrave;s avoir cliqu&eacute; sur le bouton 'Sauvegarder le token', une fen&ecirc;tre affichant la progression de la 
+		sauvegarde est affich&eacute;e. Si une erreur arrive lors de la sauvegarde, elle sera affich&eacute;e dans la barre de progression
+		et la fen&ecirc;tre ne se fermera pas automatiquement. Dans l'autre cas, la fen&ecirc;tre de progression se fermera automatiquement
+		&agrave; la fin de la sauvegarde.
+	</p>
+	
+	<h2>Restaurer les donn&eacute;es</h2>
+	<img src="static/sauvegarde1.png">
+	<p>
+		S&eacute;lectionez l'endroit o&ugrave; lire la sauvegarde et entrez le mot de passe qui d&eacute;verrouillera le fichier. 
+		Apr&egrave;s avoir cliqu&eacute; sur le bouton 'Restaurer le token', une fen&ecirc;tre affichant la progression de la 
+		restauration est affich&eacute;e. Si une erreur arrive lors du processus, elle sera affich&eacute;e dans la barre de progression
+		et la fen&ecirc;tre ne se fermera pas automatiquement. Dans l'autre cas, la fen&ecirc;tre de progression se fermera automatiquement
+		&agrave; la fin de la restauration.
 	</p>
 </html>
