@@ -824,6 +824,13 @@ public class GlobalView {
 			else
 				password.setState(State.ACCEPT, null);
 			
+			if (password2.getTextField().getText().trim().isEmpty())
+				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_1"));
+			else if (!newValue.equals(password2.getTextField().getText()))
+				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_2"));
+			else
+				password2.setState(State.ACCEPT, null);
+			
 			okButton.setDisable(password.error() || password2.error());
 		});
 		password2.getTextField().textProperty().addListener((observable, oldValue, newValue) -> {

@@ -1,5 +1,5 @@
 package fr.securingdata.smartsafe;
 
 public interface Version {
-	public String version = "1.0.0";
+	public String version = "1.0.1";
 }

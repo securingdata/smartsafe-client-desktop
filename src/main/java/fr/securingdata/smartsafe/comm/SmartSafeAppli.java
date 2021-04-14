@@ -5,9 +5,11 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import javafx.beans.property.*;
 import javax.smartcardio.CardTerminal;
 
 import fr.securingdata.connection.APDUResponse;
+import fr.securingdata.connection.Connection;
 import fr.securingdata.connection.ConnectionException;
 import fr.securingdata.globalplatform.SCP03;
 import fr.securingdata.smartsafe.Prefs;
@@ -276,6 +278,6 @@ public class SmartSafeAppli extends SCP03 {
 		selectedEntry.group = getGroup(identifier); 
 		selectedEntry.group.entries.add(selectedEntry);
 		selectedEntry = null;//Invalidate to avoid inconsistencies
-		return send("Move Group", "00270400", new StringHex(identifier.getBytes()).toString(), "00");
+		return send("Move Entry", "00270400", new StringHex(identifier.getBytes()).toString(), "00");
 	}
 }
