@@ -33,6 +33,26 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCombination;
 
 public class Controls {
+	private static class SmartSafeAppliProxy extends SmartSafeAppli {
+		public SmartSafeAppliProxy(CardTerminal reader) {
+			super(reader);
+		}
+		
+		@Override
+		public APDUResponse send(String cmdName, String header, String data, String le) {
+			ConnectionTimer.restart();
+			try {
+				if (header.startsWith("00"))//ISO7816 CLA, no SM
+					return super.rawSend(cmdName, header, data, le);
+				else
+					return super.send(cmdName, header, data, le);
+			} catch (ConnectionException e) {
+				if (appli != null)
+					ACTION_CONNECT.run();
+				throw new RuntimeException(e.getMessage());
+			}
+		}
+	}
 	private static ToggleButton connection;
 	private static MenuItem connectionMenu;
 	private static SmartSafeAppli appli;
@@ -53,7 +73,7 @@ public class Controls {
 				ProgressDialog d = new ProgressDialog(Messages.get("CONNECT_LOADING"), Images.CONNECT);
 				d.show();
 				
-				appli = new SmartSafeAppli((CardTerminal) values[0]);
+				appli = new SmartSafeAppliProxy((CardTerminal) values[0]);
 				try {
 					appli.coldReset();
 					APDUResponse resp = appli.select();

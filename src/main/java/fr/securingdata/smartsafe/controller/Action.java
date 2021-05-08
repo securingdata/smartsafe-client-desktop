@@ -1,5 +1,8 @@
 package fr.securingdata.smartsafe.controller;
 
+import fr.securingdata.smartsafe.Messages;
+import fr.securingdata.smartsafe.view.ViewUtils;
+
 public class Action {
 	public interface Executable {
 		void run(Object params);
@@ -22,8 +25,10 @@ public class Action {
 	}
 	
 	public void run() {
-		exec.run(params);
+		try {
+			exec.run(params);
+		} catch (RuntimeException e) {
+			ViewUtils.errorDialog(Messages.get("FATAL_ERROR") + e.getMessage());
+		}
 	}
-	
-	
 }

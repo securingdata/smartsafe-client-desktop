@@ -5,24 +5,26 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
-import javafx.beans.property.*;
 import javax.smartcardio.CardTerminal;
 
 import fr.securingdata.connection.APDUResponse;
 import fr.securingdata.connection.Connection;
 import fr.securingdata.connection.ConnectionException;
 import fr.securingdata.globalplatform.SCP03;
-import fr.securingdata.smartsafe.Prefs;
-import fr.securingdata.smartsafe.controller.ConnectionTimer;
 import fr.securingdata.smartsafe.model.Entry;
 import fr.securingdata.smartsafe.model.Group;
 import fr.securingdata.util.Crypto;
 import fr.securingdata.util.StringHex;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
 
 public class SmartSafeAppli extends SCP03 {
 	public static final short SW_NO_ERROR = (short) 0x9000;
 	public static final short SW_FILE_FULL = (short) 0x6A84;
 	public static final short SW_DATA_REMAINING = (short) 0x6310;
+	
+	public static final StringHex PCKG_AID = new StringHex("SmartSafe".getBytes());
+	public static final StringHex APP_AID = new StringHex("SmartSafeApp".getBytes());
 	
 	private String version;
 	private Group selectedGroup;
@@ -30,13 +32,18 @@ public class SmartSafeAppli extends SCP03 {
 	private List<Group> groups;
 	
 	public SmartSafeAppli(CardTerminal reader) {
+		this(reader, true);
+	}
+	public SmartSafeAppli(CardTerminal reader, boolean debug) {
 		super(reader);
 		
-		/*StringProperty logListener = new SimpleStringProperty("");
-		Connection.setLogListener(logListener);
-		logListener.addListener((observable, oldValue, newValue) -> {
-			System.out.print(newValue);
-		});*/
+		if (debug) {
+			StringProperty logListener = new SimpleStringProperty("");
+			Connection.setLogListener(logListener);
+			logListener.addListener((observable, oldValue, newValue) -> {
+				System.out.print(newValue);
+			});
+		}
 	}
 	
 	public Group getGroup(String group) {
@@ -102,13 +109,12 @@ public class SmartSafeAppli extends SCP03 {
 	}
 	
 	public APDUResponse select() throws ConnectionException {
-		APDUResponse resp = select(Prefs.getAppAID().toString());
+		APDUResponse resp = select(APP_AID.toString());
 		version = getVersion();
 		return resp;
 	}
 	
 	public APDUResponse send(String cmdName, String header, String data, String le) {
-		ConnectionTimer.restart();
 		try {
 			if (header.startsWith("00"))//ISO7816 CLA, no SM
 				return super.rawSend(cmdName, header, data, le);

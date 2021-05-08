@@ -502,7 +502,7 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok)
-				return groupName.getTextField().getText();
+				return groupName.getText();
 			return null;
 		});
 		
@@ -572,16 +572,16 @@ public class GlobalView {
 			identifier.setState(State.ACCEPT, null);
 			userName.setState(State.ACCEPT, null);
 			
-			if (identifier.getTextField().getText().trim().isEmpty())
+			if (identifier.getText().trim().isEmpty())
 				identifier.setState(State.ERROR, Messages.get("ENTRY_IDENTIFIER_ERROR_1"));
-			else if (identifier.getTextField().getText().length() > 64)
+			else if (identifier.getText().length() > 64)
 				identifier.setState(State.ERROR, Messages.get("ENTRY_IDENTIFIER_ERROR_2"));
-			if (userName.getTextField().getText().trim().isEmpty())
+			if (userName.getText().trim().isEmpty())
 				userName.setState(State.ERROR, Messages.get("ENTRY_USER_NAME_ERROR_1"));
-			else if (userName.getTextField().getText().length() > 64)
+			else if (userName.getText().length() > 64)
 				userName.setState(State.ERROR, Messages.get("ENTRY_USER_NAME_ERROR_2"));
 			
-			String fullId = identifier.getTextField().getText() + Entry.SEPARATOR + userName.getTextField().getText();
+			String fullId = identifier.getText() + Entry.SEPARATOR + userName.getText();
 			for (Group g : Controls.getAppli().getGroups()) {
 				for (Entry e : g.entries) {
 					if (e != selectedEntry && e.getFullIdentifier().equals(fullId)) {
@@ -631,9 +631,9 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				return new String[] {identifier.getTextField().getText(), 
-									 userName.getTextField().getText(), 
-									 password.getTextField().getText(), 
+				return new String[] {identifier.getText(), 
+									 userName.getText(), 
+									 password.getText(), 
 									 LocalDate.now().toString(),
 									 expires.getValue() != null ? expires.getValue().toString() : null, 
 									 url.getText(), 
@@ -824,9 +824,9 @@ public class GlobalView {
 			else
 				password.setState(State.ACCEPT, null);
 			
-			if (password2.getTextField().getText().trim().isEmpty())
+			if (password2.getText().trim().isEmpty())
 				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_1"));
-			else if (!newValue.equals(password2.getTextField().getText()))
+			else if (!newValue.equals(password2.getText()))
 				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_2"));
 			else
 				password2.setState(State.ACCEPT, null);
@@ -836,7 +836,7 @@ public class GlobalView {
 		password2.getTextField().textProperty().addListener((observable, oldValue, newValue) -> {
 			if (newValue.trim().isEmpty())
 				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_1"));
-			else if (!newValue.equals(password.getTextField().getText()))
+			else if (!newValue.equals(password.getText()))
 				password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_2"));
 			else
 				password2.setState(State.ACCEPT, null);
@@ -849,7 +849,7 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				return password.getTextField().getText();
+				return password.getText();
 			}
 			return null;
 		});
@@ -935,7 +935,7 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == action) {
-				return new String[] {file.getTextField().getText(), password.getTextField().getText(), dialogButton.getText()};
+				return new String[] {file.getText(), password.getText(), dialogButton.getText()};
 			}
 			return null;
 		});
@@ -974,18 +974,6 @@ public class GlobalView {
 		TextField chars = new TextField(Prefs.get(Prefs.KEY_CHARS));
 		chars.setPrefWidth(250);
 		
-		TextField pckgAid = new TextField(Prefs.get(Prefs.KEY_PCKG_AID));
-		pckgAid.textProperty().addListener((observable, oldValue, newValue) -> {
-			if (newValue.length() > 10)
-				pckgAid.setText(newValue.substring(0, 10));
-		});
-		
-		TextField appAidSuffix = new TextField(Prefs.get(Prefs.KEY_APP_AID_SUFFIX));
-		appAidSuffix.textProperty().addListener((observable, oldValue, newValue) -> {
-			if (newValue.length() > 6)
-				appAidSuffix.setText(newValue.substring(0, 10));
-		});
-		
 		Spinner<Integer> timer = new Spinner<>(0, Integer.MAX_VALUE, Integer.valueOf(Prefs.get(Prefs.KEY_TIMER)));
 		timer.setEditable(true);
 		timer.setMaxWidth(Double.MAX_VALUE);
@@ -1019,12 +1007,6 @@ public class GlobalView {
 		gp.add(theme, 1, 1);
 		gp.add(new Label(Messages.get("PREFS_CHARS")), 0, 2);
 		gp.add(chars, 1, 2);
-		if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
-			gp.add(new Label(Messages.get("PREFS_PCKG_AID")), 0, 3);
-			gp.add(pckgAid, 1, 3);
-			gp.add(new Label(Messages.get("PREFS_APP_AID")), 0, 4);
-			gp.add(appAidSuffix, 1, 4);
-		}
 		gp.add(new Label(Messages.get("PREFS_TIMER")), 0, 5);
 		gp.add(timer, 1, 5);
 
@@ -1035,20 +1017,12 @@ public class GlobalView {
 				Prefs.put(Prefs.KEY_LANGUAGE, language.getSelectionModel().getSelectedItem());
 				Prefs.put(Prefs.KEY_THEME, theme.getSelectionModel().getSelectedItem());
 				Prefs.put(Prefs.KEY_CHARS, chars.getText());
-				if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
-					Prefs.put(Prefs.KEY_PCKG_AID, pckgAid.getText());
-					Prefs.put(Prefs.KEY_APP_AID_SUFFIX, appAidSuffix.getText());
-				}
 				Prefs.put(Prefs.KEY_TIMER, timer.getValue().toString());
 			}
 			else if (dialogButton == reset) {
 				Prefs.put(Prefs.KEY_LANGUAGE, Prefs.DEFAULT_LANGUAGE);
 				Prefs.put(Prefs.KEY_THEME, Prefs.DEFAULT_THEME);
 				Prefs.put(Prefs.KEY_CHARS, Prefs.DEFAULT_CHARS);
-				if (Prefs.get(Prefs.KEY_ADM).equals(Prefs.ADM_LIST[1])) {
-					Prefs.put(Prefs.KEY_PCKG_AID, Prefs.DEFAULT_PCKG_AID);
-					Prefs.put(Prefs.KEY_APP_AID_SUFFIX, Prefs.DEFAULT_APP_AID_SUFFIX);
-				}
 				Prefs.put(Prefs.KEY_TIMER, Prefs.DEFAULT_TIMER);
 			}
 			Help.clearCache();

@@ -81,6 +81,9 @@ public class AdvancedTextField extends HBox {
 	public TextField getTextField() {
 		return textField;
 	}
+	public String getText() {
+		return textField.getText();
+	}
 	public void setTooltip(String tooltip) {
 		if (tooltip != null && !tooltip.isEmpty()) {
 			textField.setTooltip(new Tooltip(tooltip));

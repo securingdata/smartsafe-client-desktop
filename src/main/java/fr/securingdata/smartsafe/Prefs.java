@@ -3,8 +3,6 @@ package fr.securingdata.smartsafe;
 import java.util.Locale;
 import java.util.prefs.Preferences;
 
-import fr.securingdata.util.StringHex;
-
 public interface Prefs {
 	public Preferences myPrefs = Preferences.userRoot().node("smartsafe");
 	
@@ -19,22 +17,11 @@ public interface Prefs {
 	public String KEY_CHARS = "chars";
 	public String DEFAULT_CHARS = "#$%?!/*=";
 	
-	public String KEY_PCKG_AID = "pckg_aid";
-	public String DEFAULT_PCKG_AID = "SmartSafe";
-	
-	public String KEY_APP_AID_SUFFIX = "app_aid";
-	public String DEFAULT_APP_AID_SUFFIX = "App";
-	
 	public String KEY_READER = "reader";
 	public String DEFAULT_READER = "";
 	
 	public String KEY_TIMER = "timer";
 	public String DEFAULT_TIMER = "300";
-	
-	public String KEY_ADM = "adm";
-	public String[] ADM_LIST = {"No", "Yes"};
-	public String DEFAULT_ADM = ADM_LIST[0];
-	
 	
 	static Locale prefToLocale() {
 		switch(get(Prefs.KEY_LANGUAGE)) {
@@ -44,12 +31,6 @@ public interface Prefs {
 			case "Français":
 				return Locale.FRENCH;
 		}
-	}
-	static StringHex getPckgAID() {
-		return new StringHex(get(Prefs.KEY_PCKG_AID).getBytes());
-	}
-	static StringHex getAppAID() {
-		return new StringHex((get(Prefs.KEY_PCKG_AID) + get(Prefs.KEY_APP_AID_SUFFIX)).getBytes());
 	}
 	
 	static String get(String key) {
@@ -64,20 +45,11 @@ public interface Prefs {
 			case KEY_CHARS:
 				def = DEFAULT_CHARS;
 				break;
-			case KEY_PCKG_AID:
-				def = DEFAULT_PCKG_AID;
-				break;
-			case KEY_APP_AID_SUFFIX:
-				def = DEFAULT_APP_AID_SUFFIX;
-				break;
 			case KEY_READER:
 				def = DEFAULT_READER;
 				break;
 			case KEY_TIMER:
 				def = DEFAULT_TIMER;
-				break;
-			case KEY_ADM:
-				def = DEFAULT_ADM;
 				break;
 			default:
 				return null;
