@@ -101,6 +101,7 @@ public class Controls {
 				} catch (ConnectionException e) {
 					d.closeNow();
 					appli = null;
+					ViewUtils.errorDialog(e.getMessage());
 				}
 				
 				if (appli != null) {

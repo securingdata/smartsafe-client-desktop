@@ -32,7 +32,7 @@ public class SmartSafeAppli extends SCP03 {
 	private List<Group> groups;
 	
 	public SmartSafeAppli(CardTerminal reader) {
-		this(reader, true);
+		this(reader, false);
 	}
 	public SmartSafeAppli(CardTerminal reader, boolean debug) {
 		super(reader);

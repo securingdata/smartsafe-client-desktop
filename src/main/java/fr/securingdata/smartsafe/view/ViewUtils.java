@@ -45,7 +45,7 @@ public class ViewUtils {
 		readerList.getItems().addAll(terminals);
 		readerList.getSelectionModel().select(0);
 		for (int i = 0; i < terminals.size(); i++) {
-			if (terminals.get(i).getName() == Prefs.get(Prefs.KEY_READER))
+			if (terminals.get(i).getName().equals(Prefs.get(Prefs.KEY_READER)))
 				readerList.getSelectionModel().select(i);
 		}
 		return readerList;
