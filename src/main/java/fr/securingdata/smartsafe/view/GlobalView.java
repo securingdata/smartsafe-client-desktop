@@ -27,6 +27,7 @@ import fr.securingdata.smartsafe.model.Entry;
 import fr.securingdata.smartsafe.model.Group;
 import fr.securingdata.smartsafe.util.ResourcesManager;
 import fr.securingdata.smartsafe.view.AdvancedTextField.State;
+import fr.securingdata.util.StringHex;
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
 import javafx.collections.FXCollections;
@@ -305,17 +306,18 @@ public class GlobalView {
 			table.setOnContextMenuRequested(event -> {
 				MenuItem mi;
 				menu.getItems().clear();
-				for (Group g : Controls.getAppli().getGroups()) {
-					if (g != Controls.getCurrentSelectedGroupForUse()) {
-						menu.getItems().add(mi = new MenuItem(g.name));
-						mi.setOnAction(actionEvent -> {
-							MenuItem source = (MenuItem) actionEvent.getSource();
-							Controls.ACTION_ENTRY_MOVE_TO.setParams(source.getText());
-							Controls.ACTION_ENTRY_MOVE_TO.run();
-						});
-					}
+				if (Controls.getAppli() != null) {
+					for (Group g : Controls.getAppli().getGroups()) {
+						if (g != Controls.getCurrentSelectedGroupForUse()) {
+							menu.getItems().add(mi = new MenuItem(g.name));
+							mi.setOnAction(actionEvent -> {
+								MenuItem source = (MenuItem) actionEvent.getSource();
+								Controls.ACTION_ENTRY_MOVE_TO.setParams(source.getText());
+								Controls.ACTION_ENTRY_MOVE_TO.run();
+							});
+						}
+					}					
 				}
-				
 				entriesContextMenu.show(table, event.getScreenX(), event.getScreenY());
 			});
 			
@@ -657,7 +659,29 @@ public class GlobalView {
 		gp.setVgap(2);
 		
 		Button generate = new Button(Messages.get("RANDOM_GENERATE"));
-		Spinner<Integer> passwordSize = new Spinner<>(1, 128, 16);
+		Spinner<Integer> passwordSize = new Spinner<>(4, 128, 16);
+		passwordSize.setEditable(true);
+		passwordSize.focusedProperty().addListener((s, ov, nv) -> {
+		    if (nv) return;
+		    String text = passwordSize.getEditor().getText();
+		    if (text == null || text.length() == 0)
+		    	return;
+		    SpinnerValueFactory<Integer> valueFactory = passwordSize.getValueFactory();
+		    if (valueFactory != null) {
+		        StringConverter<Integer> converter = valueFactory.getConverter();
+		        if (converter != null) {
+		        	try {
+		        		Integer value = converter.fromString(text);
+		        		valueFactory.setValue(value);
+		        	}
+		        	catch (NumberFormatException nfe) {
+		        		passwordSize.getEditor().setText("" + valueFactory.getValue());
+		        	}
+		            
+		        }
+		    }
+		});
+		
 		TextField specialValues = new TextField(Prefs.get(Prefs.KEY_CHARS));
 		Color color = Prefs.get(Prefs.KEY_THEME).equals(Prefs.DEFAULT_THEME) ? Color.GRAY : Color.WHITESMOKE;
 		final CheckBox num, alpha, upper, special;
@@ -695,37 +719,41 @@ public class GlobalView {
 			if (!num.isSelected() && !alpha.isSelected() && !upper.isSelected() && (!special.isSelected() || (specialValues.getText().isEmpty())))
 				return;
 			
-			String newPass = "";
-			String spe = specialValues.getText();
-			for (int i = 0; i < passwordSize.getValue().intValue(); /*no ++*/) {
-				switch(ThreadLocalRandom.current().nextInt(0, 4)) {
-					case 0:
-						if (num.isSelected()) {
-							newPass += "" + ThreadLocalRandom.current().nextInt(0, 10);
-							i++;
-						}
-						break;
-					case 1:
-						if (alpha.isSelected()) {
-							newPass += (char) ('a' + ThreadLocalRandom.current().nextInt(0, 26));
-							i++;
-						}
-						break;
-					case 2:
-						if (upper.isSelected()) {
-							newPass += (char) ('A' + ThreadLocalRandom.current().nextInt(0, 26));
-							i++;
-						}
-						break;
-					case 3:
-						if (special.isSelected() && !spe.isEmpty()) {
-							newPass += spe.charAt(ThreadLocalRandom.current().nextInt(0, spe.length()));
-							i++;
-						}
-						break;
+			String numList = "0123456789";
+			String alphaList = "abcdefghijklmnopqrstuvwxyz";
+			String upperList = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+			String specialList = specialValues.getText();
+			
+			String base = num.isSelected() ? numList : "";
+			base += alpha.isSelected() ? alphaList : "";
+			base += upper.isSelected() ? upperList : "";
+			base += special.isSelected() ? specialList : "";
+			
+			String password = "";
+			boolean retry = true;
+			while(retry) {
+				boolean containsNum = false;
+				boolean containsAlpha = false;
+				boolean containsUpper = false;
+				boolean containsSpecial = false;
+				
+				password = "";
+				for (int i = 0; i < passwordSize.getValue().intValue(); i++) {
+					char c = base.charAt(ThreadLocalRandom.current().nextInt(0, base.length()));
+					password += c;
+					containsNum |= numList.contains("" + c);
+					containsAlpha |= alphaList.contains("" + c);
+					containsUpper |= upperList.contains("" + c);
+					containsSpecial |= specialList.contains("" + c);
 				}
+				
+				retry = false;
+				retry |= num.isSelected() && !containsNum ? true : false;
+				retry |= alpha.isSelected() && !containsAlpha ? true : false;
+				retry |= upper.isSelected() && !containsUpper ? true : false;
+				retry |= special.isSelected() && !containsSpecial ? true : false;
 			}
-			labelPass.setText(newPass);
+			labelPass.setText(password);
 			okButton.setDisable(false);
 		});
 		
@@ -792,8 +820,8 @@ public class GlobalView {
 		}
 	}
 	
-	public static String changePINDialog() {
-		Dialog<String> dialog = new Dialog<>();
+	public static String[] changePINDialog() {
+		Dialog<String[]> dialog = new Dialog<>();
 		ButtonType ok = initDialog(dialog, Images.PIN, Messages.get("CHANGE_PIN_DIALOG"));
 		
 		GridPane gp = new GridPane();
@@ -805,10 +833,36 @@ public class GlobalView {
 		password.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_1"));
 		password2.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_1"));
 		
+		Spinner<Integer> ptl = new Spinner<>(3, 10, 10);
+		ptl.setEditable(true);
+		ptl.setMaxWidth(Double.MAX_VALUE);
+		ptl.focusedProperty().addListener((s, ov, nv) -> {
+		    if (nv) return;
+		    String text = ptl.getEditor().getText();
+		    if (text == null || text.length() == 0)
+		    	return;
+		    SpinnerValueFactory<Integer> valueFactory = ptl.getValueFactory();
+		    if (valueFactory != null) {
+		        StringConverter<Integer> converter = valueFactory.getConverter();
+		        if (converter != null) {
+		        	try {
+		        		Integer value = converter.fromString(text);
+		        		valueFactory.setValue(value);
+		        	}
+		        	catch (NumberFormatException nfe) {
+		        		ptl.getEditor().setText("" + valueFactory.getValue());
+		        	}
+		            
+		        }
+		    }
+		});
+		
 		gp.add(new Label(Messages.get("CHANGE_PIN_NEW")), 0, 0);
 		gp.add(password, 1, 0);
 		gp.add(new Label(Messages.get("CHANGE_PIN_CONFIRM")), 0, 1);
 		gp.add(password2, 1, 1);
+		gp.add(new Label(Messages.get("CHANGE_PIN_PTL")), 0, 2);
+		gp.add(ptl, 1, 2);
 		
 		
 		Node okButton = dialog.getDialogPane().lookupButton(ok);
@@ -821,6 +875,8 @@ public class GlobalView {
 				password.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_3"));
 			else if (newValue.length() < 16)
 				password.setState(State.WARNING, Messages.get("CHANGE_PIN_WARNING_1"));
+			else if (newValue.length() > 200)
+				password.setState(State.ERROR, Messages.get("CHANGE_PIN_ERROR_4"));
 			else
 				password.setState(State.ACCEPT, null);
 			
@@ -849,7 +905,7 @@ public class GlobalView {
 		
 		dialog.setResultConverter(dialogButton -> {
 			if (dialogButton == ok) {
-				return password.getText();
+				return new String[] {password.getText(), StringHex.byteToHex(ptl.getValue().byteValue())};
 			}
 			return null;
 		});

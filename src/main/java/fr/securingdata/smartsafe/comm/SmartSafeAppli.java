@@ -1,5 +1,6 @@
 package fr.securingdata.smartsafe.comm;
 
+import java.security.GeneralSecurityException;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -10,6 +11,7 @@ import javax.smartcardio.CardTerminal;
 import fr.securingdata.connection.APDUResponse;
 import fr.securingdata.connection.Connection;
 import fr.securingdata.connection.ConnectionException;
+import fr.securingdata.globalplatform.GPCommands;
 import fr.securingdata.globalplatform.SCP03;
 import fr.securingdata.smartsafe.model.Entry;
 import fr.securingdata.smartsafe.model.Group;
@@ -25,6 +27,7 @@ public class SmartSafeAppli extends SCP03 {
 	
 	public static final StringHex PCKG_AID = new StringHex("SmartSafe".getBytes());
 	public static final StringHex APP_AID = new StringHex("SmartSafeApp".getBytes());
+	public static final StringHex SSD_AID = new StringHex("SecuringDataUser".getBytes());
 	
 	private String version;
 	private Group selectedGroup;
@@ -126,29 +129,90 @@ public class SmartSafeAppli extends SCP03 {
 	}
 	
 	public APDUResponse authenticate(String pin) {
+		APDUResponse error = new APDUResponse("63CF");
 		APDUResponse resp = null;
 		StringHex keys = Crypto.keyFromPassword(pin);
 		try {
 			addKey(KeyName.DEFAULT_KENC, instanciateKey(keys.get(0, 16).toBytes()));
 			addKey(KeyName.DEFAULT_KMAC, instanciateKey(keys.get(16, 16).toBytes()));
 			addKey(KeyName.DEFAULT_KDEK, instanciateKey(keys.get(32, 16).toBytes()));
-			initUpdate((byte) 0, (byte) 0).toString();
+			initUpdate((byte) 0, (byte) 0);
 			resp = externalAuth((byte) (SEC_LEVEL_C_MAC | SEC_LEVEL_C_DEC | SEC_LEVEL_R_MAC | SEC_LEVEL_R_ENC), false);
 		} catch (ConnectionException e) {
-			resp = new APDUResponse("63C0");
+			resp = error;
 		}
-		if (resp.getStatusWord() == SW_NO_ERROR)
-			resp = send("Authenticate", "84010000", new StringHex(pin.getBytes()).toString(), "");
-		return resp;
+		
+		/*In versions < 2.1.x, isTransactionOpened() will always return false -> no need to perform compatibility case*/
+		
+		if (resp.getStatusWord() == SW_NO_ERROR) {
+			if (isTransactionOpened()) {//Auth OK but transaction opened
+				if (authSSD() == null) {//SSD auth NOK, user should authenticate with new keys in order to commit
+					return new APDUResponse("63CE");
+				}
+				else {//SSD auth OK, meaning SSD keys have not been updated, abort on going transaction
+					try {
+						this.coldReset();
+						select();
+					} catch (ConnectionException e1) {/*Should not happen*/}
+					abortTransaction();
+					return authenticate(pin);//This time, authentication will go right
+				}
+			}
+			else {//Auth OK, no transaction, standard OK case
+				return send("Authenticate", "84010000", new StringHex(pin.getBytes()).toString(), "");
+			}
+		}
+		else {
+			if (isTransactionOpened()) {//Auth NOK but transaction opened
+				if (authSSD() == null) {//SSD auth NOK, very bad
+					return resp;
+				}
+				else {//SSD auth OK, meaning commit has to be done
+					try {
+						this.coldReset();
+						select();
+					} catch (ConnectionException e1) {/*Should not happen*/}
+					commitTransaction();
+					return authenticate(pin);//This time, authentication will go right
+				}
+			}
+			else {//Auth NOK, no transaction, standard NOK case
+				return resp;
+			}
+		}
 	}
-	public APDUResponse changePin(String newPin, boolean init) {
-		StringHex keys = Crypto.keyFromPassword(newPin).get(0, 32);
+	public APDUResponse changePin(String newPin, String hexPtl, boolean init) {
+		StringHex keys = Crypto.keyFromPassword(newPin);
 		String pinLen = StringHex.byteToHex((byte) newPin.length());
-		StringHex data = StringHex.concatenate(keys, new StringHex("0A" + pinLen), new StringHex(newPin.getBytes()));
+		StringHex data = StringHex.concatenate(keys.get(0, 32), new StringHex(hexPtl + pinLen), new StringHex(newPin.getBytes()));
 		if (init)
 			return send("Initialize PIN", "00020000", data.toString(), "");
-		else
-			return send("Change PIN", "84020000", data.toString(), "");
+		else {
+			APDUResponse resp = send("Change PIN", "84020000", data.toString(), "");
+			if (getVersion().startsWith("2.0."))
+				return resp;//Backward compatibility for older server versions
+			
+			try {
+				resp = new GPCommands(authSSD()).putAESKeys(false, keys.get(0, 16), keys.get(16, 16), keys.get(32, 16));
+				if (resp.getStatusWord() != SW_NO_ERROR)
+					throw new ConnectionException("Put key failed.");
+			} catch (NullPointerException /*If authSSD() fails*/ | ConnectionException | GeneralSecurityException e) {
+				e.printStackTrace();
+				try {
+					this.coldReset();
+					select();
+				} catch (ConnectionException e1) {/*Should not happen*/}
+				abortTransaction();
+				return null;
+			}
+			
+			try {
+				this.coldReset();
+				select();
+			} catch (ConnectionException e1) {/*Should not happen*/}
+			commitTransaction();
+			return authenticate(newPin);
+		}
 	}
 	public int getAivailableMemory() {
 		byte[] data = send("Available", "84030000", "", "").getData();
@@ -158,6 +222,16 @@ public class SmartSafeAppli extends SCP03 {
 		if (version == null)
 			version = new String(send("Get Version", "00040000", "", "").getData());
 		return version;
+	}
+	private boolean isTransactionOpened() {
+		APDUResponse resp = send("Get Transaction Status", "00050000", "", "");
+		return resp.getStatusWord() == SW_NO_ERROR && resp.get(0) == 1;
+	}
+	private APDUResponse abortTransaction() {
+		return send("Abort Transaction", "00050100", "", "");
+	}
+	private APDUResponse commitTransaction() {
+		return send("Commit Transaction", "00050200", "", "");
 	}
 	
 	public APDUResponse createGroup(String identifier, boolean addInternal) {
@@ -285,5 +359,22 @@ public class SmartSafeAppli extends SCP03 {
 		selectedEntry.group.entries.add(selectedEntry);
 		selectedEntry = null;//Invalidate to avoid inconsistencies
 		return send("Move Entry", "00270400", new StringHex(identifier.getBytes()).toString(), "00");
+	}
+	
+	private SCP03 authSSD() {
+		SCP03 scp = new SCP03(this.selectedReader);
+		scp.addKey(KeyName.DEFAULT_KENC, this.getKey(KeyName.DEFAULT_KENC.kvnAndKid));
+		scp.addKey(KeyName.DEFAULT_KMAC, this.getKey(KeyName.DEFAULT_KMAC.kvnAndKid));
+		scp.addKey(KeyName.DEFAULT_KDEK, this.getKey(KeyName.DEFAULT_KDEK.kvnAndKid));
+		try {
+			scp.coldReset();
+			scp.select(SSD_AID.toString());
+			scp.initUpdate((byte) 0, (byte) 0);
+			scp.externalAuth((byte) (SEC_LEVEL_C_MAC | SEC_LEVEL_C_DEC));
+		} catch (ConnectionException e) {
+			e.printStackTrace();
+			return null;
+		}
+		return scp;
 	}
 }

@@ -92,7 +92,13 @@ public class Controls {
 							resp = appli.authenticate((String) values[1]);
 							if (resp.getStatusWord() != (short) SmartSafeAppli.SW_NO_ERROR) {
 								d.closeNow();
-								ViewUtils.errorDialog(Messages.get("CONNECT_ERROR") + (int) (resp.getStatusWord() & 0xF));
+								int ptc = (int) (resp.getStatusWord() & 0xF);
+								if (ptc == 0xF)
+									ViewUtils.errorDialog(Messages.get("CONNECT_UNDEF_ERROR"));
+								else if (ptc == 0xE)
+									ViewUtils.errorDialog(Messages.get("CONNECT_OLD_KEY_ERROR"));
+								else
+									ViewUtils.errorDialog(Messages.get("CONNECT_ERROR") + ptc);
 								appli.disconnect();
 								appli = null;
 							}
@@ -235,10 +241,12 @@ public class Controls {
 	public static final String CHANGE_PIN = Messages.get("CHANGE_PIN");
 	public static final Action ACTION_CHANGE_PIN = new Action(CHANGE_PIN, false, null, params -> {
 		ConnectionTimer.restart();
-		String pin = GlobalView.changePINDialog();
-		if (pin != null) {
+		String[] data = GlobalView.changePINDialog();
+		if (data != null) {
 			EntryReader.suspendReader();
-			appli.changePin(pin, false);
+			if (appli.changePin(data[0], data[1], false) == null) {
+				ViewUtils.errorDialog(Messages.get("CHANGE_PIN_APP_ERROR_1"));
+			}
 			EntryReader.restartReader();
 		}
 	});

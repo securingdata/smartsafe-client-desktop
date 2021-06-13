@@ -78,6 +78,9 @@ public class AdvancedTextField extends HBox {
 		}
 	}
 	
+	public void requestFocus() {
+		getChildren().get(0).requestFocus();
+	}
 	public TextField getTextField() {
 		return textField;
 	}
