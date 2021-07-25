@@ -7,7 +7,7 @@
 	<groupId>fr.securingdata</groupId>
 	<artifactId>smartsafe-client</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.4</version>
+	<version>1.0.5</version>
 	<name>SmartSafeClient</name>
 
 	<build>

@@ -288,25 +288,33 @@ public class GlobalView {
 		if (table == null) {
 			table = new TableView<>();
 			
-			Menu menu;
+			
 			ContextMenu entriesContextMenu = new ContextMenu();
 			entriesContextMenu.getItems().add(getMenuItem(Controls.EDIT, ENTRY_ITEMS));
 			entriesContextMenu.getItems().add(getMenuItem(Controls.GOTO, ENTRY_ITEMS));
 			entriesContextMenu.getItems().add(getMenuItem(Controls.COPY_USER, ENTRY_ITEMS));
 			entriesContextMenu.getItems().add(getMenuItem(Controls.COPY_PASS, ENTRY_ITEMS));
 			entriesContextMenu.getItems().add(getMenuItem(Controls.SHOW_PASS, ENTRY_ITEMS));
-			entriesContextMenu.getItems().add(new SeparatorMenuItem());
-			entriesContextMenu.getItems().add(getMenuItem(Controls.ENTRY_UP, ENTRY_ITEMS));
-			entriesContextMenu.getItems().add(getMenuItem(Controls.ENTRY_DOWN, ENTRY_ITEMS));
-			entriesContextMenu.getItems().add(menu = new Menu(Messages.get("ENTRY_MOVE_TO"), new ImageView(Images.MOVE_TO)));
-			ViewUtils.addDisableListener(menu, ViewUtils.entrySelected);
+			
 			table.setOnMousePressed(event -> {
 				entriesContextMenu.hide();
 			});
 			table.setOnContextMenuRequested(event -> {
 				MenuItem mi;
-				menu.getItems().clear();
-				if (Controls.getAppli() != null) {
+				
+				//If Context Menu previously requested, first ensure that supplementary menus are removed
+				while (entriesContextMenu.getItems().size() > 5)
+					entriesContextMenu.getItems().remove(5);
+				
+				//Add supplementary menus only under specific conditions
+				if (Controls.getAppli() != null && groupsView.getSelectionModel().getSelectedItem() != null) {
+					Menu menu;
+					entriesContextMenu.getItems().add(new SeparatorMenuItem());
+					entriesContextMenu.getItems().add(getMenuItem(Controls.ENTRY_UP, ENTRY_ITEMS));
+					entriesContextMenu.getItems().add(getMenuItem(Controls.ENTRY_DOWN, ENTRY_ITEMS));
+					entriesContextMenu.getItems().add(menu = new Menu(Messages.get("ENTRY_MOVE_TO"), new ImageView(Images.MOVE_TO)));
+					ViewUtils.addDisableListener(menu, ViewUtils.entrySelected);
+					
 					for (Group g : Controls.getAppli().getGroups()) {
 						if (g != Controls.getCurrentSelectedGroupForUse()) {
 							menu.getItems().add(mi = new MenuItem(g.name));
