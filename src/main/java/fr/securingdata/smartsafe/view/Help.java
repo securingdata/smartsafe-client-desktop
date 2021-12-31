@@ -45,6 +45,7 @@ public class Help {
 		dialog.setTitle(Messages.get("HELP_DIALOG"));
 		dialog.setHeaderText(null);
 		dialog.initModality(Modality.NONE);
+		dialog.setResizable(true);
 		
 		ButtonType ok = new ButtonType("Ok", ButtonData.OK_DONE);
 		dialog.getDialogPane().getButtonTypes().addAll(ok);

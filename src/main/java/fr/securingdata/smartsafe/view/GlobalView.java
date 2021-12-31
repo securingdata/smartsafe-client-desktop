@@ -690,7 +690,7 @@ public class GlobalView {
 		    }
 		});
 		
-		TextField specialValues = new TextField(Prefs.get(Prefs.KEY_CHARS));
+		TextField specialValues = new TextField();
 		Color color = Prefs.get(Prefs.KEY_THEME).equals(Prefs.DEFAULT_THEME) ? Color.GRAY : Color.WHITESMOKE;
 		final CheckBox num, alpha, upper, special;
 		
@@ -701,6 +701,17 @@ public class GlobalView {
 		gp.add(upper = new CheckBox(Messages.get("RANDOM_UPPER")), 1, 2);
 		gp.add(special = new CheckBox(Messages.get("RANDOM_SPECIAL")), 0, 3);
 		gp.add(specialValues, 1, 3);
+		
+		specialValues.setText(null);
+		specialValues.textProperty().addListener((ov, oldVal, newVal) -> {
+			if (newVal.isEmpty()) {
+				special.setSelected(false);
+				special.setDisable(true);
+			}
+			else
+				special.setDisable(false);
+		});
+		specialValues.setText(Prefs.get(Prefs.KEY_CHARS));
 		
 		num.setSelected(true);
 		alpha.setSelected(true);
@@ -1041,26 +1052,53 @@ public class GlobalView {
 		Spinner<Integer> timer = new Spinner<>(0, Integer.MAX_VALUE, Integer.valueOf(Prefs.get(Prefs.KEY_TIMER)));
 		timer.setEditable(true);
 		timer.setMaxWidth(Double.MAX_VALUE);
+		timer.setValueFactory(new SpinnerValueFactory<Integer>() {
+			@Override
+			public void decrement(int steps) {
+				if (this.getValue() - steps < 0)
+					this.setValue(0);
+				else
+					this.setValue(this.getValue() - steps);
+			}
+			@Override
+			public void increment(int steps) {
+				if (this.getValue() + steps < 0)
+					this.setValue(Integer.MAX_VALUE);
+				else
+					this.setValue(this.getValue() + steps);
+			}
+		});
+		timer.getValueFactory().setConverter(new StringConverter<Integer>() {
+			@Override
+			public String toString(Integer object) {
+				return object.toString();
+			}
+			@Override
+			public Integer fromString(String string) {
+				try {
+					return Integer.valueOf(string);
+				}
+				catch (NumberFormatException nfe) {
+					return timer.getValue();
+				}
+			}
+		});
 		timer.focusedProperty().addListener((s, ov, nv) -> {
 		    if (nv) return;
 		    String text = timer.getEditor().getText();
 		    if (text == null || text.length() == 0)
 		    	return;
 		    SpinnerValueFactory<Integer> valueFactory = timer.getValueFactory();
-		    if (valueFactory != null) {
-		        StringConverter<Integer> converter = valueFactory.getConverter();
-		        if (converter != null) {
-		        	try {
-		        		Integer value = converter.fromString(text);
-		        		valueFactory.setValue(value);
-		        	}
-		        	catch (NumberFormatException nfe) {
-		        		timer.getEditor().setText("" + valueFactory.getValue());
-		        	}
-		            
-		        }
-		    }
+		    StringConverter<Integer> converter = valueFactory.getConverter();
+	    	try {
+        		Integer value = converter.fromString(text);
+        		valueFactory.setValue(value);
+        	}
+        	catch (NumberFormatException nfe) {
+        		timer.getEditor().setText("" + valueFactory.getValue());
+        	}
 		});
+		timer.getValueFactory().setValue(Integer.valueOf(Prefs.get(Prefs.KEY_TIMER)));
 		
 		GridPane gp = new GridPane();
 		gp.setHgap(2);
