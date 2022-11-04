@@ -32,6 +32,18 @@ The obtained JAR file can be executed by the following command:
 java -jar SmartSafeClient-X.Y.Z-jar-with-dependencies.jar
 ```
 
+On Linux, if the no smartcard reader is detected in the application, check if the reader is seen using the following command:
+
+```
+pcsc_scan
+```
+
+If *pcsc_scan* throws the following error: *SCardEstablishContext: Service not available.*, then execute the following command before attempting again to execute *pcsc_scan* :
+
+```
+sudo systemctl restart pcscd.socket
+```
+
 ## Hardware set-up
 
 Two main hardware components are required, a Java Card smart card and a card reader.

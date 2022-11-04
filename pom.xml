@@ -7,7 +7,7 @@
 	<groupId>fr.securingdata</groupId>
 	<artifactId>smartsafe-client</artifactId>
 	<packaging>jar</packaging>
-	<version>1.0.6</version>
+	<version>1.0.7</version>
 	<name>SmartSafeClient</name>
 
 	<build>
@@ -43,7 +43,7 @@
 		<dependency>
 			<groupId>fr.securingdata</groupId>
 			<artifactId>globalplatform-library</artifactId>
-			<version>1.0.6</version>
+			<version>1.0.7</version>
 		</dependency>
 	</dependencies>
 
